@@ -156,6 +156,78 @@
         );
       }
 
+      /* Tax Summary (US federal, single filer, simplified) */
+      function TaxSummary({ accounts, entries }) {
+        // Calculate profit = revenue + expenses (expenses are negative numbers)
+        let profit = 0;
+        entries.forEach((entry) => {
+          const account = accounts.find((a) => a.id === entry.accountId);
+          if (!account) return;
+          if (account.type === "Revenue" || account.type === "Expense") {
+            profit += entry.amount;
+          }
+        });
+
+        // US Federal Income Tax 2024 brackets (single filer)
+        const brackets = [
+          { limit: 11000, rate: 0.10 },
+          { limit: 44725, rate: 0.12 },
+          { limit: 95375, rate: 0.22 },
+          { limit: 182100, rate: 0.24 },
+          { limit: 231250, rate: 0.32 },
+          { limit: 578125, rate: 0.35 },
+          { limit: Infinity, rate: 0.37 },
+        ];
+
+        function computeFederalTax(income) {
+          let remaining = income;
+          let lower = 0;
+          let tax = 0;
+          for (const { limit, rate } of brackets) {
+            const taxableAtThisRate = Math.min(remaining, limit - lower);
+            if (taxableAtThisRate <= 0) break;
+            tax += taxableAtThisRate * rate;
+            remaining -= taxableAtThisRate;
+            lower = limit;
+          }
+          return tax;
+        }
+
+        const federalIncomeTax = computeFederalTax(Math.max(0, profit));
+        // Simplified self-employment tax (15.3% of profit; ignores wage base cap)
+        const selfEmploymentTax = profit > 0 ? profit * 0.153 : 0;
+        const totalTax = federalIncomeTax + selfEmploymentTax;
+
+        return (
+          <section>
+            <h2>Tax Summary (est.)</h2>
+            <table>
+              <tbody>
+                <tr>
+                  <td>Profit</td>
+                  <td>{profit.toFixed(2)}</td>
+                </tr>
+                <tr>
+                  <td>Federal Income Tax (est.)</td>
+                  <td>{federalIncomeTax.toFixed(2)}</td>
+                </tr>
+                <tr>
+                  <td>Self-Employment Tax (est.)</td>
+                  <td>{selfEmploymentTax.toFixed(2)}</td>
+                </tr>
+                <tr>
+                  <td><strong>Total Estimated Tax</strong></td>
+                  <td><strong>{totalTax.toFixed(2)}</strong></td>
+                </tr>
+              </tbody>
+            </table>
+            <p style={{ fontSize: "0.8em", color: "#666" }}>
+              *This is a simplified estimate for a US sole proprietor (single filer). Actual tax may differ.
+            </p>
+          </section>
+        );
+      }
+
       /* Root Component */
       function App() {
         const initialAccounts = [
@@ -178,6 +250,7 @@
             <ChartOfAccounts accounts={accounts} />
             <EntryForm accounts={accounts} onAdd={addEntry} />
             <BalanceSheet accounts={accounts} entries={entries} />
+            <TaxSummary accounts={accounts} entries={entries} />
           </>
         );
       }

@@ -8,7 +8,15 @@ allprojects {
 // buildDir (plain property assignment) is deprecated; layout.buildDirectory
 // is the supported replacement as of Gradle 8+/9. Keeps the same target
 // (app/build) this project has always used.
-def newBuildDir = rootProject.layout.buildDirectory.dir("../build").get()
+//
+// layout.buildDirectory.dir(...) resolves relative to the property's
+// CURRENT value, not the project directory — using it here on itself
+// silently no-ops ("../build" from ".../app/android/build" round-trips
+// back to ".../app/android/build"), which for months left every Gradle
+// output actually sitting under app/android/build while flutter_tools
+// (and our own CI artifact-upload paths) look under app/build. Resolve
+// from the stable projectDirectory instead so it actually moves.
+def newBuildDir = rootProject.layout.projectDirectory.dir("../build")
 rootProject.layout.buildDirectory.value(newBuildDir)
 
 subprojects {

@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 enum DeliveryMethod {
   meetup('Meet up'),
@@ -10,41 +10,44 @@ enum DeliveryMethod {
   final String label;
 }
 
-class Seller {
-  const Seller({required this.id, required this.name, required this.city});
-
-  final String id;
-  final String name;
-  final String city;
-}
+enum ListingStatus { live, sold }
 
 class Listing {
   Listing({
     required this.id,
+    required this.sellerId,
+    required this.sellerName,
+    required this.sellerCity,
     required this.title,
-    required this.price,
-    required this.seller,
+    required this.priceCents,
     required this.delivery,
     required this.postedAt,
     this.description = '',
-    this.photoPath,
+    this.photoUrl,
+    this.status = ListingStatus.live,
     Duration? liveFor,
   }) : liveFor = liveFor ?? const Duration(hours: 8);
 
   final String id;
+  final String sellerId;
+  final String sellerName;
+  final String sellerCity;
   final String title;
-  final double price;
-  final Seller seller;
+
+  /// Price in pence — the unit Stripe actually charges in. Never do money
+  /// math in pounds; round-trip through this field.
+  final int priceCents;
+
   final DeliveryMethod delivery;
   final DateTime postedAt;
   final String description;
-
-  /// Path to a photo captured on-device. Null for seeded/mock listings,
-  /// which fall back to a placeholder in the UI.
-  final String? photoPath;
+  final String? photoUrl;
+  final ListingStatus status;
 
   /// How long this listing stays live in the feed before it needs bumping.
   final Duration liveFor;
+
+  double get priceInPounds => priceCents / 100;
 
   DateTime get expiresAt => postedAt.add(liveFor);
 
@@ -55,29 +58,84 @@ class Listing {
 
   bool isExpired(DateTime now) => remaining(now) == Duration.zero;
 
-  File? get photoFile => photoPath == null ? null : File(photoPath!);
+  bool get canBuyInApp =>
+      status == ListingStatus.live && delivery != DeliveryMethod.meetup;
+
+  factory Listing.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data()!;
+    return Listing(
+      id: doc.id,
+      sellerId: data['sellerId'] as String,
+      sellerName: data['sellerName'] as String,
+      sellerCity: data['sellerCity'] as String,
+      title: data['title'] as String,
+      priceCents: data['priceCents'] as int,
+      delivery: DeliveryMethod.values.byName(data['delivery'] as String),
+      postedAt: (data['postedAt'] as Timestamp).toDate(),
+      description: data['description'] as String? ?? '',
+      photoUrl: data['photoUrl'] as String?,
+      status: ListingStatus.values.byName(data['status'] as String? ?? 'live'),
+      liveFor: Duration(seconds: data['liveForSeconds'] as int? ?? 28800),
+    );
+  }
+
+  Map<String, dynamic> toCreateMap() => {
+        'sellerId': sellerId,
+        'sellerName': sellerName,
+        'sellerCity': sellerCity,
+        'title': title,
+        'priceCents': priceCents,
+        'delivery': delivery.name,
+        'postedAt': Timestamp.fromDate(postedAt),
+        'description': description,
+        'photoUrl': photoUrl,
+        'status': status.name,
+        'liveForSeconds': liveFor.inSeconds,
+      };
 }
 
 class ChatMessage {
   const ChatMessage({
     required this.id,
-    required this.fromSelf,
+    required this.senderId,
     required this.text,
     required this.sentAt,
   });
 
   final String id;
-  final bool fromSelf;
+  final String senderId;
   final String text;
   final DateTime sentAt;
+
+  factory ChatMessage.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data()!;
+    return ChatMessage(
+      id: doc.id,
+      senderId: data['senderId'] as String,
+      text: data['text'] as String,
+      sentAt: (data['sentAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+    );
+  }
 }
 
-class ChatThread {
-  ChatThread({required this.listing, List<ChatMessage>? messages})
-      : messages = messages ?? [];
+/// One row in the buyer/seller inbox — denormalized onto the thread doc so
+/// the list screen doesn't have to read every message subcollection.
+class ChatThreadSummary {
+  const ChatThreadSummary({
+    required this.threadId,
+    required this.listingId,
+    required this.buyerId,
+    required this.listingTitle,
+    required this.otherPartyName,
+    required this.lastMessageText,
+    required this.lastMessageAt,
+  });
 
-  final Listing listing;
-  final List<ChatMessage> messages;
-
-  String get id => listing.id;
+  final String threadId;
+  final String listingId;
+  final String buyerId;
+  final String listingTitle;
+  final String otherPartyName;
+  final String lastMessageText;
+  final DateTime lastMessageAt;
 }

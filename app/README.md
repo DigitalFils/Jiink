@@ -3,8 +3,14 @@
 Snap it, sell it. A mobile-first, social-native marketplace app: point the
 camera, publish a listing in seconds, done.
 
-This is an early MVP scaffold — in-memory mock data, no backend or payments
-yet. Core loop: **Feed → Camera → Publish → Messages**.
+Backed by Firebase (auth, Firestore, Storage) and Stripe Connect for
+marketplace payments. Core loop: **Sign in → Feed → Camera → Publish →
+Buy / Message**.
+
+See [`SETUP.md`](../SETUP.md) at the repo root for the Stripe and Firebase
+accounts you need before this actually runs — the code compiles and
+analyzes cleanly without them, but Firebase.initializeApp() needs real
+project config to work at runtime.
 
 ## Getting Started
 

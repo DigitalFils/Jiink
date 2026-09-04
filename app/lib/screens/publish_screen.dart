@@ -1,10 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models.dart';
 import '../state/app_state.dart';
-import '../widgets/listing_photo.dart';
-import 'feed_screen.dart';
+import 'root_shell.dart';
 
 class PublishScreen extends StatefulWidget {
   const PublishScreen({super.key, required this.photoPath});
@@ -20,6 +21,8 @@ class _PublishScreenState extends State<PublishScreen> {
   final _titleController = TextEditingController();
   final _priceController = TextEditingController();
   DeliveryMethod _delivery = DeliveryMethod.both;
+  bool _publishing = false;
+  String? _error;
 
   @override
   void dispose() {
@@ -28,31 +31,35 @@ class _PublishScreenState extends State<PublishScreen> {
     super.dispose();
   }
 
-  void _publish() {
+  Future<void> _publish() async {
     if (!_formKey.currentState!.validate()) return;
-    context.read<AppState>().publishListing(
-          title: _titleController.text.trim(),
-          price: double.parse(_priceController.text),
-          delivery: _delivery,
-          photoPath: widget.photoPath,
+    setState(() {
+      _publishing = true;
+      _error = null;
+    });
+    try {
+      final pounds = double.parse(_priceController.text);
+      await context.read<AppState>().publishListing(
+            title: _titleController.text.trim(),
+            priceCents: (pounds * 100).round(),
+            delivery: _delivery,
+            photo: File(widget.photoPath),
+          );
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const RootShell()),
+          (route) => false,
         );
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const FeedScreen()),
-      (route) => false,
-    );
+      }
+    } catch (e) {
+      setState(() => _error = "Couldn't publish: $e");
+    } finally {
+      if (mounted) setState(() => _publishing = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final previewListing = Listing(
-      id: 'preview',
-      title: '',
-      price: 0,
-      seller: currentUser,
-      delivery: _delivery,
-      postedAt: DateTime.now(),
-      photoPath: widget.photoPath,
-    );
     return Scaffold(
       appBar: AppBar(title: const Text('Publish')),
       body: Padding(
@@ -61,7 +68,15 @@ class _PublishScreenState extends State<PublishScreen> {
           key: _formKey,
           child: ListView(
             children: [
-              ListingPhoto(listing: previewListing, height: 260),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Image.file(
+                  File(widget.photoPath),
+                  height: 260,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                ),
+              ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _titleController,
@@ -89,10 +104,14 @@ class _PublishScreenState extends State<PublishScreen> {
                 selected: {_delivery},
                 onSelectionChanged: (selection) => setState(() => _delivery = selection.first),
               ),
+              if (_error != null) ...[
+                const SizedBox(height: 16),
+                Text(_error!, style: const TextStyle(color: Colors.redAccent)),
+              ],
               const SizedBox(height: 24),
               ElevatedButton(
-                onPressed: _publish,
-                child: const Text('Publish now'),
+                onPressed: _publishing ? null : _publish,
+                child: Text(_publishing ? 'Publishing…' : 'Publish now'),
               ),
             ],
           ),

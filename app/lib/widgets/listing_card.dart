@@ -24,12 +24,33 @@ class ListingCard extends StatelessWidget {
             children: [
               Stack(
                 children: [
-                  ListingPhoto(listing: listing),
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: CountdownBadge(remaining: listing.remaining(DateTime.now())),
-                  ),
+                  ListingPhoto(photoUrl: listing.photoUrl),
+                  if (listing.status == ListingStatus.sold)
+                    Positioned.fill(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.55),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: const Center(
+                          child: Text(
+                            'SOLD',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 20,
+                              letterSpacing: 2,
+                            ),
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: CountdownBadge(remaining: listing.remaining(DateTime.now())),
+                    ),
                 ],
               ),
               const SizedBox(height: 10),
@@ -44,7 +65,7 @@ class ListingCard extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    '£${listing.price.toStringAsFixed(0)}',
+                    '£${listing.priceInPounds.toStringAsFixed(0)}',
                     style: const TextStyle(
                       color: S8llColors.lime,
                       fontWeight: FontWeight.w800,
@@ -52,7 +73,7 @@ class ListingCard extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    '${listing.seller.name} · ${listing.delivery.label}',
+                    '${listing.sellerName} · ${listing.delivery.label}',
                     style: const TextStyle(color: S8llColors.grey, fontSize: 12),
                   ),
                 ],

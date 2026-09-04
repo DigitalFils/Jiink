@@ -80,25 +80,17 @@ jobs:
         run: flutter test
         working-directory: ./app
 
-      - name: Build APK — per ABI
-        # -v: the non-verbose Gradle output flutter_tools shows by default
-        # filters out most lines, including (it turns out) BUILD FAILED /
-        # the real Gradle error — every recent CI failure here has shown
-        # only flutter_tools' generic "couldn't find the APK" message with
-        # no underlying cause. Verbose mode surfaces the real Gradle log.
-        run: flutter build apk --release --split-per-abi -v
-        working-directory: ./app
-
-      - name: Build Universal APK
+      - name: Build APK
+        # Deliberately not --split-per-abi: with this Flutter/AGP 9 toolchain
+        # combination it never generates the expected ABI-named task
+        # variants (Gradle actually succeeds — plain :app:assembleRelease
+        # runs — but flutter_tools then looks for app-<abi>-release.apk
+        # files that were never produced, and fails with a generic "couldn't
+        # find the APK" error that hid a real BUILD SUCCESSFUL for several
+        # CI rounds). A single universal APK is the right tradeoff anyway
+        # for a side-loaded pop-up build where size isn't the constraint.
         run: flutter build apk --release
         working-directory: ./app
-
-      - name: Upload ARM64 APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: S8LL-arm64-v8a-release
-          path: app/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
-          retention-days: 30
 
       - name: Upload Universal APK
         uses: actions/upload-artifact@v4
@@ -113,6 +105,6 @@ jobs:
           echo "### S8LL APK built successfully" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "**Version:** ${VERSION}" >> "$GITHUB_STEP_SUMMARY"
-          echo "**Size (arm64-v8a):** $(du -h app/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk | cut -f1)" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Size:** $(du -h app/build/app/outputs/flutter-apk/app-release.apk | cut -f1)" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "Download the APK from the Artifacts section of this run." >> "$GITHUB_STEP_SUMMARY"

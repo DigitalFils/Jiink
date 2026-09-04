@@ -35,7 +35,14 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.debug
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            // Code shrinking (R8) isn't worth it yet for a side-loaded pop-up
+            // APK, and it's been the direct cause of every remaining CI
+            // failure on this dependency set (missing-class errors, then
+            // multi-minute stalls once Stripe pulled in a full Compose
+            // dependency graph). Revisit once this is a Play Store release
+            // where APK size actually matters.
+            minifyEnabled false
+            shrinkResources false
         }
     }
 }

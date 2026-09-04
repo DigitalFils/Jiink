@@ -6,16 +6,50 @@ on:
     paths:
       - "app/**"
       - "functions/**"
+      - "firestore-tests/**"
+      - "firestore.rules"
       - ".github/workflows/build-apk.yml"
   pull_request:
     branches: [main, master]
     paths:
       - "app/**"
       - "functions/**"
+      - "firestore-tests/**"
+      - "firestore.rules"
       - ".github/workflows/build-apk.yml"
   workflow_dispatch: # Manual button in GitHub
 
 jobs:
+  firestore-rules-tests:
+    name: Firestore security rules
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        # The Firestore emulator is a JVM app.
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: firestore-tests/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: ./firestore-tests
+
+      - name: Run rules tests against the Firestore emulator
+        run: npm run test:emulator
+        working-directory: ./firestore-tests
+
   build-functions:
     name: Build payments backend
     runs-on: ubuntu-latest

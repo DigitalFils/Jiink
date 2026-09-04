@@ -1,43 +1,83 @@
-enum AccountType {
-  asset('Asset'),
-  liability('Liability'),
-  equity('Equity'),
-  revenue('Revenue'),
-  expense('Expense');
+import 'dart:io';
 
-  const AccountType(this.label);
+enum DeliveryMethod {
+  meetup('Meet up'),
+  shipping('Ship it'),
+  both('Meet up or ship');
+
+  const DeliveryMethod(this.label);
 
   final String label;
 }
 
-class Account {
-  const Account({required this.id, required this.name, required this.type});
+class Seller {
+  const Seller({required this.id, required this.name, required this.city});
 
   final String id;
   final String name;
-  final AccountType type;
+  final String city;
 }
 
-class Entry {
-  const Entry({
+class Listing {
+  Listing({
     required this.id,
-    required this.date,
-    required this.description,
-    required this.accountId,
-    required this.amount,
+    required this.title,
+    required this.price,
+    required this.seller,
+    required this.delivery,
+    required this.postedAt,
+    this.description = '',
+    this.photoPath,
+    Duration? liveFor,
+  }) : liveFor = liveFor ?? const Duration(hours: 8);
+
+  final String id;
+  final String title;
+  final double price;
+  final Seller seller;
+  final DeliveryMethod delivery;
+  final DateTime postedAt;
+  final String description;
+
+  /// Path to a photo captured on-device. Null for seeded/mock listings,
+  /// which fall back to a placeholder in the UI.
+  final String? photoPath;
+
+  /// How long this listing stays live in the feed before it needs bumping.
+  final Duration liveFor;
+
+  DateTime get expiresAt => postedAt.add(liveFor);
+
+  Duration remaining(DateTime now) {
+    final left = expiresAt.difference(now);
+    return left.isNegative ? Duration.zero : left;
+  }
+
+  bool isExpired(DateTime now) => remaining(now) == Duration.zero;
+
+  File? get photoFile => photoPath == null ? null : File(photoPath!);
+}
+
+class ChatMessage {
+  const ChatMessage({
+    required this.id,
+    required this.fromSelf,
+    required this.text,
+    required this.sentAt,
   });
 
   final String id;
-  final DateTime date;
-  final String description;
-  final String accountId;
-  final double amount;
+  final bool fromSelf;
+  final String text;
+  final DateTime sentAt;
 }
 
-const List<Account> initialAccounts = [
-  Account(id: 'cash', name: 'Cash', type: AccountType.asset),
-  Account(id: 'bank', name: 'Bank', type: AccountType.asset),
-  Account(id: 'sales', name: 'Sales Revenue', type: AccountType.revenue),
-  Account(id: 'expenses', name: 'Operating Expense', type: AccountType.expense),
-  Account(id: 'equity', name: 'Owner Equity', type: AccountType.equity),
-];
+class ChatThread {
+  ChatThread({required this.listing, List<ChatMessage>? messages})
+      : messages = messages ?? [];
+
+  final Listing listing;
+  final List<ChatMessage> messages;
+
+  String get id => listing.id;
+}

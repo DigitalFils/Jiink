@@ -1,12 +1,12 @@
-# jiink
+# S8LL
 
-Jiink Accounting Dashboard
+Snap it, sell it. A mobile-first, social-native marketplace app: point the
+camera, publish a listing in seconds, done.
+
+This is an early MVP scaffold — in-memory mock data, no backend or payments
+yet. Core loop: **Feed → Camera → Publish → Messages**.
 
 ## Getting Started
-
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
 
 - [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
 - [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)

@@ -1,23 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-import 'dashboard_screen.dart';
+import 'screens/root_shell.dart';
+import 'state/app_state.dart';
+import 'theme.dart';
 
 void main() {
-  runApp(const JiinkApp());
+  runApp(const S8llApp());
 }
 
-class JiinkApp extends StatelessWidget {
-  const JiinkApp({super.key});
+class S8llApp extends StatelessWidget {
+  const S8llApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Jiink Accounting Dashboard',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
+    return ChangeNotifierProvider(
+      create: (_) => AppState(),
+      child: MaterialApp(
+        title: 'S8LL',
+        debugShowCheckedModeBanner: false,
+        theme: buildS8llTheme(),
+        home: const RootShell(),
       ),
-      home: const DashboardScreen(),
     );
   }
 }

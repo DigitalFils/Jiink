@@ -1,112 +1,110 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
 import '../models.dart';
+import '../services/listings_repository.dart';
 
-const currentUser = Seller(id: 'me', name: 'You', city: 'Manchester');
+/// The signed-in seller's own profile — kept separate from FirebaseAuth's
+/// User so screens have one place to read displayName/city/payoutsEnabled
+/// without caring where each came from.
+class Profile {
+  const Profile({
+    required this.uid,
+    required this.displayName,
+    required this.city,
+    required this.payoutsEnabled,
+  });
+
+  final String uid;
+  final String displayName;
+  final String city;
+  final bool payoutsEnabled;
+}
 
 class AppState extends ChangeNotifier {
-  AppState() {
-    _listings.addAll(_seedListings());
+  AppState({required this.uid, ListingsRepository? repository})
+      : _repository = repository ?? ListingsRepository() {
+    _profileSub = FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .snapshots()
+        .listen(_onProfileSnapshot);
+    _listingsSub = _repository.liveListings().listen(_onListingsSnapshot);
+    _myListingsSub =
+        _repository.listingsBySeller(uid).listen(_onMyListingsSnapshot);
   }
 
-  final List<Listing> _listings = [];
-  final Map<String, ChatThread> _threads = {};
+  final String uid;
+  final ListingsRepository _repository;
 
+  late final StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>
+      _profileSub;
+  late final StreamSubscription<List<Listing>> _listingsSub;
+  late final StreamSubscription<List<Listing>> _myListingsSub;
+
+  Profile? _profile;
+  List<Listing> _listings = [];
+  List<Listing> _myListings = [];
+
+  Profile? get profile => _profile;
   List<Listing> get listings => List.unmodifiable(_listings);
+  List<Listing> get myListings => List.unmodifiable(_myListings);
 
-  List<Listing> get myListings =>
-      _listings.where((l) => l.seller.id == currentUser.id).toList();
+  void _onProfileSnapshot(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data();
+    if (data == null) return;
+    _profile = Profile(
+      uid: uid,
+      displayName: data['displayName'] as String? ?? 'Seller',
+      city: data['city'] as String? ?? '',
+      payoutsEnabled: data['payoutsEnabled'] as bool? ?? false,
+    );
+    notifyListeners();
+  }
 
-  List<ChatThread> get threads => List.unmodifiable(_threads.values);
+  void _onListingsSnapshot(List<Listing> listings) {
+    _listings = listings;
+    notifyListeners();
+  }
 
-  void publishListing({
+  void _onMyListingsSnapshot(List<Listing> listings) {
+    _myListings = listings;
+    notifyListeners();
+  }
+
+  Future<void> publishListing({
     required String title,
-    required double price,
+    required int priceCents,
     required DeliveryMethod delivery,
+    required File photo,
     String description = '',
-    String? photoPath,
   }) {
-    final listing = Listing(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
+    final profile = _profile;
+    if (profile == null) {
+      throw StateError('Profile not loaded yet.');
+    }
+    return _repository.publish(
+      sellerId: uid,
+      sellerName: profile.displayName,
+      sellerCity: profile.city,
       title: title,
-      price: price,
-      seller: currentUser,
+      priceCents: priceCents,
       delivery: delivery,
-      postedAt: DateTime.now(),
+      photo: photo,
       description: description,
-      photoPath: photoPath,
     );
-    _listings.insert(0, listing);
-    notifyListeners();
   }
 
-  void bumpListing(String listingId) {
-    final index = _listings.indexWhere((l) => l.id == listingId);
-    if (index == -1) return;
-    final old = _listings.removeAt(index);
-    _listings.insert(
-      0,
-      Listing(
-        id: old.id,
-        title: old.title,
-        price: old.price,
-        seller: old.seller,
-        delivery: old.delivery,
-        postedAt: DateTime.now(),
-        description: old.description,
-        photoPath: old.photoPath,
-        liveFor: old.liveFor,
-      ),
-    );
-    notifyListeners();
-  }
+  Future<void> bumpListing(String listingId) => _repository.bump(listingId);
 
-  ChatThread threadFor(Listing listing) {
-    return _threads.putIfAbsent(listing.id, () => ChatThread(listing: listing));
-  }
-
-  void sendMessage(Listing listing, String text) {
-    if (text.trim().isEmpty) return;
-    final thread = threadFor(listing);
-    thread.messages.add(ChatMessage(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
-      fromSelf: true,
-      text: text.trim(),
-      sentAt: DateTime.now(),
-    ));
-    notifyListeners();
-  }
-
-  List<Listing> _seedListings() {
-    final now = DateTime.now();
-    return [
-      Listing(
-        id: 'seed-1',
-        title: 'Nike Air Max 90, worn twice',
-        price: 45,
-        seller: const Seller(id: 's1', name: 'jordan_m', city: 'Manchester'),
-        delivery: DeliveryMethod.both,
-        postedAt: now.subtract(const Duration(hours: 1)),
-        description: 'Size 9. No box, still in great shape.',
-      ),
-      Listing(
-        id: 'seed-2',
-        title: 'Vintage denim jacket',
-        price: 28,
-        seller: const Seller(id: 's2', name: 'freya.k', city: 'Manchester'),
-        delivery: DeliveryMethod.shipping,
-        postedAt: now.subtract(const Duration(hours: 3)),
-        description: 'Y2K era, oversized fit.',
-      ),
-      Listing(
-        id: 'seed-3',
-        title: 'PS5 controller — barely used',
-        price: 35,
-        seller: const Seller(id: 's3', name: 'ammar_', city: 'Manchester'),
-        delivery: DeliveryMethod.meetup,
-        postedAt: now.subtract(const Duration(hours: 6)),
-        description: 'Pickup near Thomas St.',
-      ),
-    ];
+  @override
+  void dispose() {
+    _profileSub.cancel();
+    _listingsSub.cancel();
+    _myListingsSub.cancel();
+    super.dispose();
   }
 }

@@ -38,7 +38,7 @@ class _RootShellState extends State<RootShell> {
         selectedIndex: _tab,
         onDestinationSelected: (index) => setState(() => _tab = index),
         backgroundColor: S8llColors.charcoal,
-        indicatorColor: S8llColors.lime.withOpacity(0.2),
+        indicatorColor: S8llColors.lime.withValues(alpha: 0.2),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.storefront_outlined), label: 'Feed'),
           NavigationDestination(icon: Icon(Icons.chat_bubble_outline), label: 'Messages'),

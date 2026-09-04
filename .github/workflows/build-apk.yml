@@ -81,20 +81,19 @@ jobs:
         working-directory: ./app
 
       - name: Build APK
-        # Deliberately not --split-per-abi: with this Flutter/AGP 9 toolchain
-        # combination it never generates the expected ABI-named task
-        # variants (Gradle actually succeeds — plain :app:assembleRelease
-        # runs — but flutter_tools then looks for app-<abi>-release.apk
-        # files that were never produced, and fails with a generic "couldn't
-        # find the APK" error that hid a real BUILD SUCCESSFUL for several
-        # CI rounds). A single universal APK is the right tradeoff anyway
-        # for a side-loaded pop-up build where size isn't the constraint.
+        # Deliberately not --split-per-abi: a single universal APK is the
+        # right tradeoff for a side-loaded pop-up build where size isn't
+        # the constraint.
         #
-        # -v: keep verbose on — the non-verbose output filters out
-        # BUILD SUCCESSFUL/FAILED and any real Gradle error, which is what
-        # hid the split-per-abi issue above for 10+ CI rounds. Dropping
-        # --split-per-abi alone still hit the same generic failure, so
-        # verbose output is needed again to see what's actually happening.
+        # Root cause of every prior CI failure here (flutter/flutter#174620):
+        # this project declares AGP/Kotlin via the modern settings.gradle
+        # plugins {} block, not a root build.gradle buildscript {} block.
+        # Flutter's post-build step that copies the APK into
+        # build/app/outputs/flutter-apk/ never triggers in that setup, so
+        # `flutter build apk` reported a generic "couldn't find the APK"
+        # failure even when Gradle had genuinely succeeded. Fixed with a
+        # Copy task in app/build.gradle; -v stays on as a safety net so a
+        # real failure (if this doesn't fully cover it) isn't hidden again.
         run: flutter build apk --release -v
         working-directory: ./app
 

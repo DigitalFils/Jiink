@@ -81,7 +81,12 @@ jobs:
         working-directory: ./app
 
       - name: Build APK — per ABI
-        run: flutter build apk --release --split-per-abi
+        # -v: the non-verbose Gradle output flutter_tools shows by default
+        # filters out most lines, including (it turns out) BUILD FAILED /
+        # the real Gradle error — every recent CI failure here has shown
+        # only flutter_tools' generic "couldn't find the APK" message with
+        # no underlying cause. Verbose mode surfaces the real Gradle log.
+        run: flutter build apk --release --split-per-abi -v
         working-directory: ./app
 
       - name: Build Universal APK

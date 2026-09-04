@@ -29,7 +29,7 @@ class ListingCard extends StatelessWidget {
                     Positioned.fill(
                       child: DecoratedBox(
                         decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.55),
+                          color: Colors.black.withValues(alpha: 0.55),
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: const Center(

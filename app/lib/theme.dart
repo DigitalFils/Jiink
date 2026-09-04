@@ -31,7 +31,7 @@ ThemeData buildS8llTheme() {
         letterSpacing: 0.5,
       ),
     ),
-    cardTheme: const CardTheme(
+    cardTheme: const CardThemeData(
       color: S8llColors.charcoal,
       elevation: 0,
       margin: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -48,7 +48,7 @@ ThemeData buildS8llTheme() {
         padding: const EdgeInsets.symmetric(vertical: 14),
       ),
     ),
-    bottomAppBarTheme: const BottomAppBarTheme(
+    bottomAppBarTheme: const BottomAppBarThemeData(
       color: S8llColors.charcoal,
       elevation: 0,
     ),

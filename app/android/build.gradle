@@ -19,19 +19,23 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
-// stripe_android declares stripe-android-issuing-push-provisioning (Google
-// Pay card issuing — a feature we don't use, only PaymentSheet checkout) as
-// compileOnly. Its POM pulls in com.google.android.gms:play-services-
-// tapandpay:17.1.2, which Google no longer publishes anywhere resolvable.
-// Android Lint's "lint vital" analysis (which AGP wires into every release
-// build for every library module, including this one) resolves compileOnly
-// dependencies too, so it hits this every time regardless of any lint
-// setting — checkReleaseBuilds=false does not stop it. Excluding the module
-// from dependency resolution project-wide is the fix that actually reaches
-// lint's classpath, not just the app's own compile/runtime classpaths.
+// stripe_android's own Kotlin source (PushProvisioningProxy.kt etc.)
+// references classes from stripe-android-issuing-push-provisioning (Google
+// Pay card issuing — a feature we don't use, only PaymentSheet checkout),
+// declared compileOnly, so it genuinely needs that module to compile —
+// excluding it project-wide broke stripe_android's own compilation.
+//
+// The actual problem is one level deeper: that module's POM pulls in
+// com.google.android.gms:play-services-tapandpay:17.1.2, which Google no
+// longer publishes anywhere resolvable, and Android Lint's "lint vital"
+// classpath (releaseLintChecksClasspath — wired into every release build
+// for every library module by AGP; lint.checkReleaseBuilds=false does not
+// stop it) tries to resolve it. Excluding just that one leaf artifact, only
+// from lint's own classpath configurations, fixes lint's resolution without
+// touching what stripe_android needs to actually compile.
 subprojects { subproject ->
-    subproject.configurations.all {
-        exclude group: "com.stripe", module: "stripe-android-issuing-push-provisioning"
+    subproject.configurations.matching { it.name.endsWith("LintChecksClasspath") }.configureEach {
+        exclude group: "com.google.android.gms", module: "play-services-tapandpay"
     }
 }
 

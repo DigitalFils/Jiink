@@ -218,6 +218,54 @@ class SellerRating {
   bool get hasRatings => count > 0;
 }
 
+enum OfferStatus { pending, accepted, declined }
+
+/// A buyer's offer on a listing. Doc id is listingId_buyerId, so a buyer
+/// gets exactly one active offer per listing — see firestore.rules. If
+/// accepted, checkout charges offerCents instead of the listing price;
+/// nothing on the client needs to pass that along, the backend looks the
+/// accepted offer up itself.
+class Offer {
+  const Offer({
+    required this.listingId,
+    required this.buyerId,
+    required this.sellerId,
+    required this.offerCents,
+    required this.status,
+    required this.createdAt,
+  });
+
+  final String listingId;
+  final String buyerId;
+  final String sellerId;
+  final int offerCents;
+  final OfferStatus status;
+  final DateTime createdAt;
+
+  double get offerInPounds => offerCents / 100;
+
+  factory Offer.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data()!;
+    return Offer(
+      listingId: data['listingId'] as String,
+      buyerId: data['buyerId'] as String,
+      sellerId: data['sellerId'] as String,
+      offerCents: data['offerCents'] as int,
+      status: OfferStatus.values.byName(data['status'] as String),
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toCreateMap() => {
+        'listingId': listingId,
+        'buyerId': buyerId,
+        'sellerId': sellerId,
+        'offerCents': offerCents,
+        'status': status.name,
+        'createdAt': Timestamp.fromDate(createdAt),
+      };
+}
+
 /// One row in the buyer/seller inbox — denormalized onto the thread doc so
 /// the list screen doesn't have to read every message subcollection.
 class ChatThreadSummary {

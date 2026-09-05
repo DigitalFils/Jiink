@@ -325,3 +325,101 @@ describe("reviews/{listingId}", () => {
     await assertSucceeds(dbAs(CAROL).doc(`reviews/${LISTING}`).get());
   });
 });
+
+describe("offers/{offerId}", () => {
+  const LISTING = "listing-1";
+  const OFFER = `${LISTING}_${BOB}`;
+
+  beforeEach(async () => {
+    await seed((db) =>
+      db.doc(`listings/${LISTING}`).set({ sellerId: ALICE, status: "live", priceCents: 1000 })
+    );
+  });
+
+  function pendingOffer(overrides: Record<string, unknown> = {}) {
+    return {
+      listingId: LISTING,
+      buyerId: BOB,
+      sellerId: ALICE,
+      offerCents: 700,
+      status: "pending",
+      ...overrides,
+    };
+  }
+
+  it("lets a buyer make an offer below the asking price on a live listing", async () => {
+    await assertSucceeds(dbAs(BOB).doc(`offers/${OFFER}`).set(pendingOffer()));
+  });
+
+  it("rejects an offer at or above the asking price", async () => {
+    await assertFails(dbAs(BOB).doc(`offers/${OFFER}`).set(pendingOffer({ offerCents: 1000 })));
+    await assertFails(dbAs(BOB).doc(`offers/${OFFER}`).set(pendingOffer({ offerCents: 1200 })));
+  });
+
+  it("rejects a zero, negative, or non-integer offer", async () => {
+    await assertFails(dbAs(BOB).doc(`offers/${OFFER}`).set(pendingOffer({ offerCents: 0 })));
+    await assertFails(dbAs(BOB).doc(`offers/${OFFER}`).set(pendingOffer({ offerCents: -50 })));
+    await assertFails(dbAs(BOB).doc(`offers/${OFFER}`).set(pendingOffer({ offerCents: "700" })));
+  });
+
+  it("rejects an offer on a listing that isn't live", async () => {
+    await seed((db) => db.doc(`listings/${LISTING}`).set({ sellerId: ALICE, status: "sold", priceCents: 1000 }));
+    await assertFails(dbAs(BOB).doc(`offers/${OFFER}`).set(pendingOffer()));
+  });
+
+  it("rejects an offer naming a seller the listing doesn't actually have", async () => {
+    await assertFails(dbAs(BOB).doc(`offers/${OFFER}`).set(pendingOffer({ sellerId: CAROL })));
+  });
+
+  it("rejects a doc id that doesn't match listingId_buyerId", async () => {
+    await assertFails(dbAs(BOB).doc(`offers/wrong-id`).set(pendingOffer()));
+  });
+
+  it("rejects making an offer under someone else's identity", async () => {
+    await assertFails(dbAs(CAROL).doc(`offers/${OFFER}`).set(pendingOffer({ buyerId: CAROL })));
+  });
+
+  it("lets the seller accept a pending offer", async () => {
+    await seed((db) => db.doc(`offers/${OFFER}`).set(pendingOffer()));
+    await assertSucceeds(
+      dbAs(ALICE).doc(`offers/${OFFER}`).update({ status: "accepted", respondedAt: new Date() })
+    );
+  });
+
+  it("lets the seller decline a pending offer", async () => {
+    await seed((db) => db.doc(`offers/${OFFER}`).set(pendingOffer()));
+    await assertSucceeds(
+      dbAs(ALICE).doc(`offers/${OFFER}`).update({ status: "declined", respondedAt: new Date() })
+    );
+  });
+
+  it("blocks the buyer from responding to (or editing) their own offer", async () => {
+    await seed((db) => db.doc(`offers/${OFFER}`).set(pendingOffer()));
+    await assertFails(dbAs(BOB).doc(`offers/${OFFER}`).update({ status: "accepted" }));
+    await assertFails(dbAs(BOB).doc(`offers/${OFFER}`).update({ offerCents: 900 }));
+  });
+
+  it("blocks a third party from responding to someone else's offer", async () => {
+    await seed((db) => db.doc(`offers/${OFFER}`).set(pendingOffer()));
+    await assertFails(dbAs(CAROL).doc(`offers/${OFFER}`).update({ status: "accepted" }));
+  });
+
+  it("blocks re-responding to an offer that's already been resolved", async () => {
+    await seed((db) => db.doc(`offers/${OFFER}`).set(pendingOffer({ status: "declined" })));
+    await assertFails(dbAs(ALICE).doc(`offers/${OFFER}`).update({ status: "accepted" }));
+  });
+
+  it("blocks the seller from sneaking in other field changes while responding", async () => {
+    await seed((db) => db.doc(`offers/${OFFER}`).set(pendingOffer()));
+    await assertFails(
+      dbAs(ALICE).doc(`offers/${OFFER}`).update({ status: "accepted", offerCents: 1 })
+    );
+  });
+
+  it("lets the buyer and seller read the offer, blocks a third party", async () => {
+    await seed((db) => db.doc(`offers/${OFFER}`).set(pendingOffer()));
+    await assertSucceeds(dbAs(BOB).doc(`offers/${OFFER}`).get());
+    await assertSucceeds(dbAs(ALICE).doc(`offers/${OFFER}`).get());
+    await assertFails(dbAs(CAROL).doc(`offers/${OFFER}`).get());
+  });
+});

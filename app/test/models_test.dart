@@ -102,4 +102,30 @@ void main() {
       expect(rating.hasRatings, isTrue);
     });
   });
+
+  group('Offer', () {
+    test('offerInPounds converts pence correctly', () {
+      final offer = Offer(
+        listingId: 'l1',
+        buyerId: 'buyer-1',
+        sellerId: 'seller-1',
+        offerCents: 3500,
+        status: OfferStatus.pending,
+        createdAt: DateTime.now(),
+      );
+      expect(offer.offerInPounds, 35.0);
+    });
+
+    test('toCreateMap round-trips status as its name', () {
+      final offer = Offer(
+        listingId: 'l1',
+        buyerId: 'buyer-1',
+        sellerId: 'seller-1',
+        offerCents: 3500,
+        status: OfferStatus.accepted,
+        createdAt: DateTime.now(),
+      );
+      expect(offer.toCreateMap()['status'], 'accepted');
+    });
+  });
 }

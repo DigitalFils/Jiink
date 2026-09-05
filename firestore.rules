@@ -23,6 +23,13 @@ service cloud.firestore {
         && resource.data.sellerId == request.auth.uid
         && request.resource.data.sellerId == resource.data.sellerId
         && request.resource.data.status == resource.data.status;
+      // Watching is the only signal a non-owner can leave on a listing —
+      // no likes, no comments — and it's scoped so tightly that touching
+      // it can never be a backdoor to editing price/status/anything else:
+      // the update is only allowed when watcherIds is the *sole* field
+      // whose value actually changed.
+      allow update: if request.auth != null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['watcherIds']);
       allow delete: if false;
     }
 

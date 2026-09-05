@@ -6,6 +6,7 @@ Listing _listing({
   Duration liveFor = const Duration(hours: 8),
   DeliveryMethod delivery = DeliveryMethod.both,
   ListingStatus status = ListingStatus.live,
+  List<String>? watcherIds,
 }) {
   return Listing(
     id: 'l1',
@@ -18,6 +19,7 @@ Listing _listing({
     postedAt: postedAt,
     status: status,
     liveFor: liveFor,
+    watcherIds: watcherIds,
   );
 }
 
@@ -68,6 +70,24 @@ void main() {
         status: ListingStatus.sold,
       );
       expect(listing.canBuyInApp, isFalse);
+    });
+  });
+
+  group('watching', () {
+    test('a listing with no watchers has a zero count and no watcher is watching', () {
+      final listing = _listing(postedAt: DateTime.now());
+      expect(listing.watcherCount, 0);
+      expect(listing.isWatchedBy('anyone'), isFalse);
+    });
+
+    test('watcherCount and isWatchedBy reflect the watcher list', () {
+      final listing = _listing(
+        postedAt: DateTime.now(),
+        watcherIds: ['buyer-1', 'buyer-2'],
+      );
+      expect(listing.watcherCount, 2);
+      expect(listing.isWatchedBy('buyer-1'), isTrue);
+      expect(listing.isWatchedBy('someone-else'), isFalse);
     });
   });
 }

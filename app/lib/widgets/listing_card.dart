@@ -78,6 +78,21 @@ class ListingCard extends StatelessWidget {
                   ),
                 ],
               ),
+              if (listing.watcherCount > 0) ...[
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(Icons.visibility_outlined, size: 14, color: S8llColors.grey),
+                    const SizedBox(width: 4),
+                    Text(
+                      listing.watcherCount == 1
+                          ? '1 watching'
+                          : '${listing.watcherCount} watching',
+                      style: const TextStyle(color: S8llColors.grey, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),

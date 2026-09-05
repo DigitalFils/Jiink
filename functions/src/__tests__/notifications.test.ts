@@ -1,4 +1,4 @@
-import { FieldValue } from "firebase-admin/firestore";
+import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { FakeFirestore } from "./helpers/fakeFirestore";
 import { makeFakeMessaging } from "./helpers/fakeMessaging";
 
@@ -15,6 +15,7 @@ import {
   onOrderCreated,
   matchesSavedSearch,
   onNewListingMatchSavedSearches,
+  remindSellersOfExpiringListings,
 } from "../notifications";
 
 const BUYER = "buyer-1";
@@ -217,5 +218,66 @@ describe("onNewListingMatchSavedSearches", () => {
     expect(fakeMessaging.sendEachForMulticast).toHaveBeenCalledWith(
       expect.objectContaining({ tokens: ["match-token"] })
     );
+  });
+});
+
+describe("remindSellersOfExpiringListings", () => {
+  const run = () =>
+    remindSellersOfExpiringListings.run({ scheduleTime: new Date().toISOString() } as never);
+
+  beforeEach(() => {
+    fakeDb.seed(`users/${SELLER}`, { fcmTokens: ["seller-token"] });
+  });
+
+  it("reminds the seller and marks reminderSent for a listing expiring in ~27 minutes", async () => {
+    fakeDb.seed(`listings/${LISTING}`, {
+      sellerId: SELLER,
+      title: "Nike Air Max 90",
+      status: "live",
+      postedAt: Timestamp.now(),
+      liveForSeconds: 27 * 60, // expires in 27 minutes — inside the 25-30 window
+    });
+
+    await run();
+
+    expect(fakeMessaging.sendEachForMulticast).toHaveBeenCalledTimes(1);
+    expect(fakeMessaging.sendEachForMulticast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tokens: ["seller-token"],
+        notification: expect.objectContaining({ title: "Listing expiring soon" }),
+        data: { type: "expiring-soon", listingId: LISTING },
+      })
+    );
+    expect(fakeDb.store.get(`listings/${LISTING}`)?.reminderSent).toBe(true);
+  });
+
+  it("does not remind again once reminderSent is already true", async () => {
+    fakeDb.seed(`listings/${LISTING}`, {
+      sellerId: SELLER,
+      title: "Nike Air Max 90",
+      status: "live",
+      postedAt: Timestamp.now(),
+      liveForSeconds: 27 * 60,
+      reminderSent: true,
+    });
+
+    await run();
+
+    expect(fakeMessaging.sendEachForMulticast).not.toHaveBeenCalled();
+  });
+
+  it("leaves a listing untouched when it isn't close to expiring yet", async () => {
+    fakeDb.seed(`listings/${LISTING}`, {
+      sellerId: SELLER,
+      title: "Nike Air Max 90",
+      status: "live",
+      postedAt: Timestamp.now(),
+      liveForSeconds: 8 * 60 * 60, // expires in 8 hours — well outside the window
+    });
+
+    await run();
+
+    expect(fakeMessaging.sendEachForMulticast).not.toHaveBeenCalled();
+    expect(fakeDb.store.get(`listings/${LISTING}`)?.reminderSent).toBeUndefined();
   });
 });

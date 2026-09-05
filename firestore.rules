@@ -81,5 +81,37 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/orders/$(request.resource.data.orderId)).data.sellerId == request.resource.data.sellerId;
       allow update, delete: if false;
     }
+
+    // A buyer's offer on a listing. Doc id is listingId_buyerId — same
+    // composite-key pattern as chatThreads — so a buyer gets exactly one
+    // active offer per listing; a second create attempt at the same id is
+    // classified as an update and falls through to the rule below, which
+    // only the seller (not the buyer) can use.
+    match /offers/{offerId} {
+      allow read: if request.auth != null
+        && (request.auth.uid == resource.data.buyerId || request.auth.uid == resource.data.sellerId);
+      allow create: if request.auth != null
+        && request.auth.uid == request.resource.data.buyerId
+        && offerId == request.resource.data.listingId + '_' + request.resource.data.buyerId
+        && request.resource.data.status == 'pending'
+        && request.resource.data.offerCents is int
+        && request.resource.data.offerCents > 0
+        && request.resource.data.offerCents
+             < get(/databases/$(database)/documents/listings/$(request.resource.data.listingId)).data.priceCents
+        && get(/databases/$(database)/documents/listings/$(request.resource.data.listingId)).data.status == 'live'
+        && request.resource.data.sellerId
+             == get(/databases/$(database)/documents/listings/$(request.resource.data.listingId)).data.sellerId;
+      // Only the seller can respond, only while it's still pending, and only
+      // by flipping status — the buyer can never edit their own offer
+      // (no raising it after the fact, no self-approving a discount by
+      // writing "accepted" themselves: that's gated on resource.data.sellerId,
+      // which is the seller who already owned this offer, not whoever calls).
+      allow update: if request.auth != null
+        && request.auth.uid == resource.data.sellerId
+        && resource.data.status == 'pending'
+        && request.resource.data.status in ['accepted', 'declined']
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'respondedAt']);
+      allow delete: if false;
+    }
   }
 }

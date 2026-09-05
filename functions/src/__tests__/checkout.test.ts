@@ -139,4 +139,70 @@ describe("createListingPaymentIntent", () => {
       })
     );
   });
+
+  it("charges the accepted offer price instead of the listing price", async () => {
+    seedLiveListing({ priceCents: 2500 });
+    seedPayoutReadySeller();
+    fakeDb.seed(`offers/${LISTING}_${BUYER}`, {
+      listingId: LISTING,
+      buyerId: BUYER,
+      sellerId: SELLER,
+      offerCents: 2000,
+      status: "accepted",
+    });
+
+    await createListingPaymentIntent.run({
+      data: { listingId: LISTING },
+      auth: { uid: BUYER },
+    } as never);
+
+    expect(fakeStripe.paymentIntents.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        amount: 2000,
+        application_fee_amount: 160, // 8% of 2000, not of the original 2500
+      })
+    );
+  });
+
+  it("ignores a pending offer and charges the full listing price", async () => {
+    seedLiveListing({ priceCents: 2500 });
+    seedPayoutReadySeller();
+    fakeDb.seed(`offers/${LISTING}_${BUYER}`, {
+      listingId: LISTING,
+      buyerId: BUYER,
+      sellerId: SELLER,
+      offerCents: 2000,
+      status: "pending",
+    });
+
+    await createListingPaymentIntent.run({
+      data: { listingId: LISTING },
+      auth: { uid: BUYER },
+    } as never);
+
+    expect(fakeStripe.paymentIntents.create).toHaveBeenCalledWith(
+      expect.objectContaining({ amount: 2500 })
+    );
+  });
+
+  it("ignores a declined offer and charges the full listing price", async () => {
+    seedLiveListing({ priceCents: 2500 });
+    seedPayoutReadySeller();
+    fakeDb.seed(`offers/${LISTING}_${BUYER}`, {
+      listingId: LISTING,
+      buyerId: BUYER,
+      sellerId: SELLER,
+      offerCents: 2000,
+      status: "declined",
+    });
+
+    await createListingPaymentIntent.run({
+      data: { listingId: LISTING },
+      auth: { uid: BUYER },
+    } as never);
+
+    expect(fakeStripe.paymentIntents.create).toHaveBeenCalledWith(
+      expect.objectContaining({ amount: 2500 })
+    );
+  });
 });

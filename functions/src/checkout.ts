@@ -57,7 +57,16 @@ export const createListingPaymentIntent = onCall(
       );
     }
 
-    const amount: number = listing.priceCents;
+    // A buyer who had an offer accepted pays that price instead of the
+    // listing price. The offer doc's id is deterministic (listingId_buyerId)
+    // so this is a single get, not a query — and its status can only ever
+    // have been flipped to "accepted" by the seller (firestore.rules), so a
+    // buyer can't grant themselves a discount by writing the offer alone.
+    const offerSnap = await db.collection("offers").doc(`${listingId}_${buyerId}`).get();
+    const offerData = offerSnap.data();
+    const amount: number =
+      offerData?.status === "accepted" ? (offerData.offerCents as number) : listing.priceCents;
+
     const stripe = getStripeClient();
     const paymentIntent = await stripe.paymentIntents.create({
       amount,

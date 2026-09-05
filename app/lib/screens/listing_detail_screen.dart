@@ -5,6 +5,7 @@ import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:provider/provider.dart';
 
 import '../models.dart';
+import '../services/offers_repository.dart';
 import '../services/payments_service.dart';
 import '../services/reviews_repository.dart';
 import '../state/app_state.dart';
@@ -38,6 +39,11 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
   bool _submittingReview = false;
   final _commentController = TextEditingController();
 
+  Offer? _myOffer;
+  StreamSubscription<Offer?>? _myOfferSub;
+  List<Offer> _pendingOffers = [];
+  StreamSubscription<List<Offer>>? _pendingOffersSub;
+
   @override
   void initState() {
     super.initState();
@@ -63,13 +69,93 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
         });
       });
     }
+
+    final offers = context.read<OffersRepository>();
+    if (isMine) {
+      _pendingOffersSub = offers.pendingOffersForListing(widget.listing.id).listen((pending) {
+        if (mounted) setState(() => _pendingOffers = pending);
+      });
+    } else if (!isSold) {
+      _myOfferSub = offers.offerFor(listingId: widget.listing.id, buyerId: uid).listen((offer) {
+        if (mounted) setState(() => _myOffer = offer);
+      });
+    }
   }
 
   @override
   void dispose() {
     _reviewSub?.cancel();
+    _myOfferSub?.cancel();
+    _pendingOffersSub?.cancel();
     _commentController.dispose();
     super.dispose();
+  }
+
+  Future<void> _showMakeOfferDialog() async {
+    final controller = TextEditingController();
+    final offerPounds = await showDialog<double>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Make an offer'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: InputDecoration(
+            prefixText: '£',
+            hintText: 'Less than £${widget.listing.priceInPounds.toStringAsFixed(0)}',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(double.tryParse(controller.text)),
+            child: const Text('Send offer'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || offerPounds == null || offerPounds <= 0) return;
+
+    final offerCents = (offerPounds * 100).round();
+    if (offerCents >= widget.listing.priceCents) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Your offer must be less than the asking price.')),
+      );
+      return;
+    }
+
+    try {
+      await context.read<OffersRepository>().makeOffer(
+            listingId: widget.listing.id,
+            sellerId: widget.listing.sellerId,
+            buyerId: context.read<AppState>().uid,
+            offerCents: offerCents,
+          );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Could not send offer: $e')));
+      }
+    }
+  }
+
+  Future<void> _respondToOffer(Offer offer, {required bool accept}) async {
+    try {
+      await context.read<OffersRepository>().respondToOffer(
+            listingId: offer.listingId,
+            buyerId: offer.buyerId,
+            accept: accept,
+          );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Could not respond to offer: $e')));
+      }
+    }
   }
 
   Future<void> _submitReview() async {
@@ -271,12 +357,70 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                   child: const Text('Set up payouts'),
                 ),
               ],
+              if (_pendingOffers.isNotEmpty) ...[
+                const SizedBox(height: 20),
+                Text('Offers', style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 8),
+                for (final offer in _pendingOffers)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '£${offer.offerInPounds.toStringAsFixed(0)}',
+                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () => _respondToOffer(offer, accept: false),
+                          child: const Text('Decline'),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: () => _respondToOffer(offer, accept: true),
+                          child: const Text('Accept'),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
             ] else ...[
               if (listing.canBuyInApp)
                 ElevatedButton(
                   onPressed: _buying ? null : _buyNow,
-                  child: Text(_buying ? 'Processing…' : 'Buy now'),
+                  child: Text(
+                    _buying
+                        ? 'Processing…'
+                        : _myOffer?.status == OfferStatus.accepted
+                            ? 'Buy now at £${_myOffer!.offerInPounds.toStringAsFixed(0)}'
+                            : 'Buy now',
+                  ),
                 ),
+              if (listing.canBuyInApp) ...[
+                const SizedBox(height: 10),
+                switch (_myOffer?.status) {
+                  null => OutlinedButton(
+                      onPressed: _showMakeOfferDialog,
+                      child: const Text('Make an offer'),
+                    ),
+                  OfferStatus.pending => Text(
+                      'Your offer of £${_myOffer!.offerInPounds.toStringAsFixed(0)} is pending — waiting for the seller',
+                      style: const TextStyle(color: S8llColors.grey),
+                    ),
+                  OfferStatus.accepted => const Row(
+                      children: [
+                        Icon(Icons.check_circle, color: S8llColors.lime, size: 18),
+                        SizedBox(width: 6),
+                        Text('Offer accepted — buy now at the price above'),
+                      ],
+                    ),
+                  OfferStatus.declined => const Text(
+                      'Your offer was declined',
+                      style: TextStyle(color: S8llColors.grey),
+                    ),
+                },
+              ],
               const SizedBox(height: 10),
               OutlinedButton.icon(
                 onPressed: _toggleWatch,

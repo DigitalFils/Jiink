@@ -109,20 +109,54 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
     super.dispose();
   }
 
+  /// Whole-pound quick-offer suggestions (90%/80%/70% of the asking price),
+  /// deduplicated and kept strictly below the asking price so every chip is
+  /// a valid offer on its own.
+  List<int> _quickOfferPounds() {
+    final priceInPounds = widget.listing.priceInPounds;
+    final pounds = <int>{
+      for (final ratio in [0.9, 0.8, 0.7]) (priceInPounds * ratio).round(),
+    }.where((p) => p > 0 && p < priceInPounds).toList()
+      ..sort((a, b) => b.compareTo(a));
+    return pounds;
+  }
+
   Future<void> _showMakeOfferDialog() async {
     final controller = TextEditingController();
+    final quickOfferPounds = _quickOfferPounds();
     final offerPounds = await showDialog<double>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Make an offer'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: InputDecoration(
-            prefixText: '£',
-            hintText: 'Less than £${widget.listing.priceInPounds.toStringAsFixed(0)}',
-          ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (quickOfferPounds.isNotEmpty) ...[
+              Text('Quick offer', style: Theme.of(context).textTheme.bodySmall),
+              const SizedBox(height: S8llSpacing.xs),
+              Wrap(
+                spacing: S8llSpacing.sm,
+                children: [
+                  for (final pounds in quickOfferPounds)
+                    ActionChip(
+                      label: Text('£$pounds'),
+                      onPressed: () => controller.text = '$pounds',
+                    ),
+                ],
+              ),
+              const SizedBox(height: S8llSpacing.md),
+            ],
+            TextField(
+              controller: controller,
+              autofocus: true,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: InputDecoration(
+                prefixText: '£',
+                hintText: 'Less than £${widget.listing.priceInPounds.toStringAsFixed(0)}',
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(

@@ -337,7 +337,11 @@ class _DropCard extends StatelessWidget {
           Positioned(
             left: 20,
             right: 20,
-            bottom: 28,
+            // RootShell's camera FAB floats centerFloat — its footprint is
+            // ~72px above the bottom nav bar (16 margin + 56 FAB height).
+            // bottom: 28 used to put this block's lower half directly
+            // behind it, invisible under an opaque button.
+            bottom: 80,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,

@@ -85,7 +85,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
 
     final offers = context.read<OffersRepository>();
     if (isMine) {
-      _pendingOffersSub = offers.pendingOffersForListing(widget.listing.id).listen((pending) {
+      _pendingOffersSub = offers.pendingOffersForListing(widget.listing.id, uid).listen((pending) {
         if (mounted) setState(() => _pendingOffers = pending);
       });
     } else if (!isSold) {

@@ -25,7 +25,15 @@ class _CaptureScreenState extends State<CaptureScreen> {
     final picker = ImagePicker();
     XFile? photo;
     try {
-      photo = await picker.pickImage(source: ImageSource.camera, imageQuality: 85);
+      // maxWidth resizes the image itself — imageQuality alone only
+      // re-compresses it at full camera resolution (often 3000px+ wide,
+      // several MB), which is what was making publishing slow: the upload
+      // had to move that whole file before Storage would return a URL.
+      photo = await picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 85,
+        maxWidth: 1600,
+      );
     } catch (_) {
       photo = null;
     }

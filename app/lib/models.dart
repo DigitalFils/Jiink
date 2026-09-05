@@ -132,6 +132,92 @@ class ChatMessage {
   }
 }
 
+/// A completed purchase — written only by the Stripe webhook (Admin SDK),
+/// never by a client. Doc id is the Stripe PaymentIntent id.
+class PurchaseOrder {
+  const PurchaseOrder({
+    required this.id,
+    required this.listingId,
+    required this.buyerId,
+    required this.sellerId,
+  });
+
+  final String id;
+  final String listingId;
+  final String buyerId;
+  final String sellerId;
+
+  factory PurchaseOrder.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data()!;
+    return PurchaseOrder(
+      id: doc.id,
+      listingId: data['listingId'] as String,
+      buyerId: data['buyerId'] as String,
+      sellerId: data['sellerId'] as String,
+    );
+  }
+}
+
+/// A buyer's rating of a seller, left after a completed purchase. Doc id is
+/// the listingId — a listing sells at most once, so that's already a
+/// unique key per transaction, and it's what the client has on hand
+/// without an extra lookup.
+class Review {
+  const Review({
+    required this.listingId,
+    required this.sellerId,
+    required this.buyerId,
+    required this.orderId,
+    required this.rating,
+    required this.createdAt,
+    this.comment = '',
+  });
+
+  final String listingId;
+  final String sellerId;
+  final String buyerId;
+  final String orderId;
+
+  /// 1-5. Enforced server-side by firestore.rules, not just here.
+  final int rating;
+  final String comment;
+  final DateTime createdAt;
+
+  factory Review.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data()!;
+    return Review(
+      listingId: doc.id,
+      sellerId: data['sellerId'] as String,
+      buyerId: data['buyerId'] as String,
+      orderId: data['orderId'] as String,
+      rating: data['rating'] as int,
+      comment: data['comment'] as String? ?? '',
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toCreateMap() => {
+        'sellerId': sellerId,
+        'buyerId': buyerId,
+        'orderId': orderId,
+        'rating': rating,
+        'comment': comment,
+        'createdAt': Timestamp.fromDate(createdAt),
+      };
+}
+
+/// A seller's aggregate rating, computed live from `reviews` via Firestore
+/// aggregation queries — never denormalized/stored, so there's no counter
+/// to keep in sync and nothing for a client to tamper with.
+class SellerRating {
+  const SellerRating({required this.average, required this.count});
+
+  final double average;
+  final int count;
+
+  bool get hasRatings => count > 0;
+}
+
 /// One row in the buyer/seller inbox — denormalized onto the thread doc so
 /// the list screen doesn't have to read every message subcollection.
 class ChatThreadSummary {

@@ -1,13 +1,18 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:provider/provider.dart';
 
 import '../models.dart';
 import '../services/payments_service.dart';
+import '../services/reviews_repository.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/countdown_badge.dart';
 import '../widgets/listing_photo.dart';
+import '../widgets/seller_rating_badge.dart';
+import '../widgets/star_rating_input.dart';
 import 'chat_screen.dart';
 import 'payouts_setup_screen.dart';
 
@@ -25,12 +30,69 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
   late bool _watching;
   late int _watcherCount;
 
+  SellerRating? _sellerRating;
+  PurchaseOrder? _myOrder;
+  Review? _existingReview;
+  StreamSubscription<Review?>? _reviewSub;
+  int _draftRating = 0;
+  bool _submittingReview = false;
+  final _commentController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
     final uid = context.read<AppState>().uid;
     _watching = widget.listing.isWatchedBy(uid);
     _watcherCount = widget.listing.watcherCount;
+
+    final reviews = context.read<ReviewsRepository>();
+    reviews.sellerRating(widget.listing.sellerId).then((rating) {
+      if (mounted) setState(() => _sellerRating = rating);
+    });
+
+    final isSold = widget.listing.status == ListingStatus.sold;
+    final isMine = widget.listing.sellerId == uid;
+    if (isSold && !isMine) {
+      reviews
+          .orderForPurchase(buyerId: uid, listingId: widget.listing.id)
+          .then((order) {
+        if (!mounted || order == null) return;
+        setState(() => _myOrder = order);
+        _reviewSub = reviews.reviewForListing(widget.listing.id).listen((review) {
+          if (mounted) setState(() => _existingReview = review);
+        });
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _reviewSub?.cancel();
+    _commentController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submitReview() async {
+    final order = _myOrder;
+    if (order == null || _draftRating == 0) return;
+    setState(() => _submittingReview = true);
+    try {
+      await context.read<ReviewsRepository>().leaveReview(
+            listingId: widget.listing.id,
+            sellerId: widget.listing.sellerId,
+            buyerId: order.buyerId,
+            orderId: order.id,
+            rating: _draftRating,
+            comment: _commentController.text.trim(),
+          );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Could not submit review: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _submittingReview = false);
+    }
   }
 
   Future<void> _toggleWatch() async {
@@ -131,6 +193,8 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                     style: const TextStyle(color: S8llColors.grey)),
               ],
             ),
+            const SizedBox(height: 4),
+            SellerRatingBadge(rating: _sellerRating),
             const SizedBox(height: 6),
             Row(
               children: [
@@ -153,9 +217,39 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
               ),
             ],
             const SizedBox(height: 24),
-            if (isSold)
-              const Text('This item has sold.', style: TextStyle(color: S8llColors.grey))
-            else if (isMine) ...[
+            if (isSold) ...[
+              const Text('This item has sold.', style: TextStyle(color: S8llColors.grey)),
+              if (_myOrder != null) ...[
+                const SizedBox(height: 16),
+                if (_existingReview != null)
+                  Row(
+                    children: [
+                      const Icon(Icons.check_circle, color: S8llColors.lime, size: 18),
+                      const SizedBox(width: 6),
+                      Text('You rated this seller ${_existingReview!.rating}/5'),
+                    ],
+                  )
+                else ...[
+                  Text('Rate this seller', style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 4),
+                  StarRatingInput(
+                    value: _draftRating,
+                    onChanged: (v) => setState(() => _draftRating = v),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _commentController,
+                    maxLines: 2,
+                    decoration: const InputDecoration(hintText: 'Add a comment (optional)'),
+                  ),
+                  const SizedBox(height: 10),
+                  ElevatedButton(
+                    onPressed: (_draftRating == 0 || _submittingReview) ? null : _submitReview,
+                    child: Text(_submittingReview ? 'Submitting…' : 'Submit review'),
+                  ),
+                ],
+              ],
+            ] else if (isMine) ...[
               ElevatedButton(
                 onPressed: () {
                   context.read<AppState>().bumpListing(listing.id);

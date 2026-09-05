@@ -58,5 +58,28 @@ service cloud.firestore {
         && (request.auth.uid == resource.data.buyerId || request.auth.uid == resource.data.sellerId);
       allow write: if false;
     }
+
+    // A buyer's rating of a seller after a completed sale. Doc id is the
+    // listingId — a listing sells at most once, so a second create attempt
+    // at the same id is classified as an update, which is denied below,
+    // making a review a one-shot, immutable thing per sale.
+    //
+    // The client-supplied orderId is checked against the real orders
+    // collection (webhook-only, never client-written) rather than trusting
+    // anything else in the request: this is what actually proves the
+    // reviewer paid for this exact listing, as this exact seller's buyer,
+    // rather than fabricating a 5-star review for a stranger's item.
+    match /reviews/{listingId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.rating is int
+        && request.resource.data.rating >= 1
+        && request.resource.data.rating <= 5
+        && request.auth.uid == request.resource.data.buyerId
+        && get(/databases/$(database)/documents/orders/$(request.resource.data.orderId)).data.buyerId == request.auth.uid
+        && get(/databases/$(database)/documents/orders/$(request.resource.data.orderId)).data.listingId == listingId
+        && get(/databases/$(database)/documents/orders/$(request.resource.data.orderId)).data.sellerId == request.resource.data.sellerId;
+      allow update, delete: if false;
+    }
   }
 }

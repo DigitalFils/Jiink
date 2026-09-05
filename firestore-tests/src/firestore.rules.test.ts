@@ -248,3 +248,80 @@ describe("orders/{orderId}", () => {
     await assertFails(dbAs(BOB).doc("orders/o1").delete());
   });
 });
+
+describe("reviews/{listingId}", () => {
+  const LISTING = "listing-1";
+  const ORDER = "order-1";
+
+  beforeEach(async () => {
+    await seed((db) =>
+      db.doc(`orders/${ORDER}`).set({ buyerId: BOB, sellerId: ALICE, listingId: LISTING })
+    );
+  });
+
+  function validReview(overrides: Record<string, unknown> = {}) {
+    return {
+      sellerId: ALICE,
+      buyerId: BOB,
+      orderId: ORDER,
+      rating: 5,
+      comment: "Great seller, fast shipping",
+      ...overrides,
+    };
+  }
+
+  it("lets the real buyer of a completed sale leave a review", async () => {
+    await assertSucceeds(dbAs(BOB).doc(`reviews/${LISTING}`).set(validReview()));
+  });
+
+  it("rejects a rating outside 1-5", async () => {
+    await assertFails(dbAs(BOB).doc(`reviews/${LISTING}`).set(validReview({ rating: 0 })));
+    await assertFails(dbAs(BOB).doc(`reviews/${LISTING}`).set(validReview({ rating: 6 })));
+  });
+
+  it("rejects a non-integer rating", async () => {
+    await assertFails(dbAs(BOB).doc(`reviews/${LISTING}`).set(validReview({ rating: "5" })));
+  });
+
+  it("blocks writing a review under someone else's identity", async () => {
+    // CAROL didn't buy anything — there's no order making her eligible —
+    // and even naming herself as buyer doesn't help, since the order this
+    // points at says the buyer was BOB, not her.
+    await assertFails(
+      dbAs(CAROL).doc(`reviews/${LISTING}`).set(validReview({ buyerId: CAROL }))
+    );
+  });
+
+  it("blocks a fabricated review with an orderId that doesn't back it up", async () => {
+    await assertFails(
+      dbAs(BOB).doc(`reviews/${LISTING}`).set(validReview({ orderId: "no-such-order" }))
+    );
+  });
+
+  it("blocks a review pointing at an order for a different listing", async () => {
+    await seed((db) =>
+      db.doc("orders/order-2").set({ buyerId: BOB, sellerId: ALICE, listingId: "listing-2" })
+    );
+    await assertFails(
+      dbAs(BOB).doc(`reviews/${LISTING}`).set(validReview({ orderId: "order-2" }))
+    );
+  });
+
+  it("blocks attributing the review to a seller the order doesn't name", async () => {
+    await assertFails(
+      dbAs(BOB).doc(`reviews/${LISTING}`).set(validReview({ sellerId: CAROL }))
+    );
+  });
+
+  it("blocks editing or replacing a review once it's been left", async () => {
+    await seed((db) => db.doc(`reviews/${LISTING}`).set(validReview()));
+    await assertFails(dbAs(BOB).doc(`reviews/${LISTING}`).update({ rating: 1 }));
+    await assertFails(dbAs(BOB).doc(`reviews/${LISTING}`).set(validReview({ rating: 1 })));
+    await assertFails(dbAs(BOB).doc(`reviews/${LISTING}`).delete());
+  });
+
+  it("lets any signed-in user read reviews", async () => {
+    await seed((db) => db.doc(`reviews/${LISTING}`).set(validReview()));
+    await assertSucceeds(dbAs(CAROL).doc(`reviews/${LISTING}`).get());
+  });
+});

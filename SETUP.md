@@ -28,10 +28,12 @@ From the repo root:
 ```sh
 npm install -g firebase-tools
 firebase login
-firebase use --add          # pick your new project, alias it "default"
+firebase use --add          # pick your new project, alias it "staging"
 ```
 
-This replaces the placeholder in `.firebaserc`.
+This replaces the placeholder in `.firebaserc`. (Naming it `staging` now,
+not `default`, is what makes step 7 — adding a separate `production`
+project later — a clean addition instead of a rename.)
 
 From `app/`:
 
@@ -54,6 +56,11 @@ firebase functions:secrets:set STRIPE_WEBHOOK_SECRET   # see step 5
 
 firebase deploy --only functions,firestore:rules,storage
 ```
+
+Deploy will also prompt for `STRIPE_MODE` the first time — answer `test`
+for now. It's not a secret, just a safety check (see step 7) that the key
+you just set above is actually a test key; the deploy fails loudly instead
+of silently if it isn't.
 
 ## 5. Point Stripe at the webhook
 
@@ -85,6 +92,33 @@ To get an email on either, no extra service required:
 
 Cloud Logging keeps 30 days of logs by default, which is plenty at
 pop-up scale — nothing further to provision.
+
+## 7. Before you take a real payment: separate test and live
+
+Everything above sets up one Firebase project running Stripe in test mode
+— the right way to build and demo this. Before switching to live keys,
+don't just swap the secret on that same project: create a second one.
+
+1. `firebase use --add` again, pointing at a **new** Firebase project,
+   aliased `production`.
+2. In Stripe, toggle **Viewing test data** off in the Dashboard, and repeat
+   step 1's key setup for the live key (`sk_live_...`) and step 5's webhook
+   for a second endpoint — Stripe requires separate webhook endpoints and
+   signing secrets per mode.
+3. Set that project's secrets and mode:
+   ```sh
+   firebase functions:secrets:set STRIPE_SECRET_KEY --project production
+   firebase functions:secrets:set STRIPE_WEBHOOK_SECRET --project production
+   ```
+   When deploy prompts for `STRIPE_MODE` on this project, answer `live`.
+
+That prompt is the actual safety net: `stripeClient.ts` refuses to start
+if the key it finds doesn't match the mode you declared for that
+environment — a live key deployed to a project you meant to keep in test
+mode (or a stale test key deployed to `production`) fails loudly at the
+first request instead of silently doing the wrong thing with real money.
+Deploy to whichever project with `--project staging` / `--project
+production`; day-to-day development stays on `staging`.
 
 ## What's still manual after this
 

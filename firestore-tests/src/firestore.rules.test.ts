@@ -131,6 +131,32 @@ describe("listings/{listingId}", () => {
     await seed((db) => db.doc("listings/l1").set({ sellerId: ALICE, status: "live" }));
     await assertFails(dbAs(ALICE).doc("listings/l1").delete());
   });
+
+  it("lets a non-owner watch a listing — the only signal they may leave on it", async () => {
+    await seed((db) =>
+      db.doc("listings/l1").set({ sellerId: ALICE, status: "live", watcherIds: [] })
+    );
+    await assertSucceeds(dbAs(BOB).doc("listings/l1").update({ watcherIds: [BOB] }));
+  });
+
+  it("lets a non-owner unwatch a listing they're already watching", async () => {
+    await seed((db) =>
+      db.doc("listings/l1").set({ sellerId: ALICE, status: "live", watcherIds: [BOB] })
+    );
+    await assertSucceeds(dbAs(BOB).doc("listings/l1").update({ watcherIds: [] }));
+  });
+
+  it("blocks using the watch path to sneak in any other field change", async () => {
+    await seed((db) =>
+      db.doc("listings/l1").set({ sellerId: ALICE, status: "live", priceCents: 500, watcherIds: [] })
+    );
+    await assertFails(
+      dbAs(BOB).doc("listings/l1").update({ watcherIds: [BOB], priceCents: 1 })
+    );
+    await assertFails(
+      dbAs(BOB).doc("listings/l1").update({ watcherIds: [BOB], status: "sold" })
+    );
+  });
 });
 
 describe("chatThreads/{threadId}", () => {

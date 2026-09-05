@@ -100,6 +100,9 @@ class AppState extends ChangeNotifier {
 
   Future<void> bumpListing(String listingId) => _repository.bump(listingId);
 
+  Future<void> setWatching(String listingId, {required bool watching}) =>
+      _repository.setWatching(listingId, uid, watching: watching);
+
   @override
   void dispose() {
     _profileSub.cancel();

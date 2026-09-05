@@ -72,4 +72,14 @@ class ListingsRepository {
       'postedAt': Timestamp.now(),
     });
   }
+
+  /// Adds or removes [uid] from a listing's watcher list. Firestore rules
+  /// allow this specific field to change on someone else's listing —
+  /// nothing else about it — which is what lets a buyer watch an item
+  /// without being able to touch its price, status, or anything else.
+  Future<void> setWatching(String listingId, String uid, {required bool watching}) {
+    return _listings.doc(listingId).update({
+      'watcherIds': watching ? FieldValue.arrayUnion([uid]) : FieldValue.arrayRemove([uid]),
+    });
+  }
 }

@@ -22,6 +22,35 @@ class ListingDetailScreen extends StatefulWidget {
 
 class _ListingDetailScreenState extends State<ListingDetailScreen> {
   bool _buying = false;
+  late bool _watching;
+  late int _watcherCount;
+
+  @override
+  void initState() {
+    super.initState();
+    final uid = context.read<AppState>().uid;
+    _watching = widget.listing.isWatchedBy(uid);
+    _watcherCount = widget.listing.watcherCount;
+  }
+
+  Future<void> _toggleWatch() async {
+    final next = !_watching;
+    setState(() {
+      _watching = next;
+      _watcherCount += next ? 1 : -1;
+    });
+    try {
+      await context.read<AppState>().setWatching(widget.listing.id, watching: next);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _watching = !next;
+        _watcherCount += next ? -1 : 1;
+      });
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Could not update — try again.')));
+    }
+  }
 
   Future<void> _buyNow() async {
     setState(() => _buying = true);
@@ -110,6 +139,19 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                 Text(listing.delivery.label, style: const TextStyle(color: S8llColors.grey)),
               ],
             ),
+            if (_watcherCount > 0) ...[
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  const Icon(Icons.visibility_outlined, size: 18, color: S8llColors.grey),
+                  const SizedBox(width: 6),
+                  Text(
+                    _watcherCount == 1 ? '1 person watching' : '$_watcherCount people watching',
+                    style: const TextStyle(color: S8llColors.grey),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 24),
             if (isSold)
               const Text('This item has sold.', style: TextStyle(color: S8llColors.grey))
@@ -141,6 +183,18 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                   onPressed: _buying ? null : _buyNow,
                   child: Text(_buying ? 'Processing…' : 'Buy now'),
                 ),
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                onPressed: _toggleWatch,
+                icon: Icon(_watching ? Icons.visibility : Icons.visibility_outlined),
+                label: Text(_watching ? 'Watching' : 'Watch'),
+                style: _watching
+                    ? OutlinedButton.styleFrom(
+                        foregroundColor: S8llColors.lime,
+                        side: const BorderSide(color: S8llColors.lime),
+                      )
+                    : null,
+              ),
               const SizedBox(height: 10),
               OutlinedButton(
                 onPressed: () => Navigator.of(context).push(

@@ -26,7 +26,9 @@ class Listing {
     this.photoUrl,
     this.status = ListingStatus.live,
     Duration? liveFor,
-  }) : liveFor = liveFor ?? const Duration(hours: 8);
+    List<String>? watcherIds,
+  })  : liveFor = liveFor ?? const Duration(hours: 8),
+        watcherIds = watcherIds ?? const [];
 
   final String id;
   final String sellerId;
@@ -46,6 +48,16 @@ class Listing {
 
   /// How long this listing stays live in the feed before it needs bumping.
   final Duration liveFor;
+
+  /// Buyers who are watching this listing. S8LL has no "likes" — watching
+  /// is the only passive social signal, and unlike a like it means
+  /// something: a watcher gets outbid-style urgency as the drop timer
+  /// counts down, not just a vanity count.
+  final List<String> watcherIds;
+
+  int get watcherCount => watcherIds.length;
+
+  bool isWatchedBy(String uid) => watcherIds.contains(uid);
 
   double get priceInPounds => priceCents / 100;
 
@@ -76,6 +88,7 @@ class Listing {
       photoUrl: data['photoUrl'] as String?,
       status: ListingStatus.values.byName(data['status'] as String? ?? 'live'),
       liveFor: Duration(seconds: data['liveForSeconds'] as int? ?? 28800),
+      watcherIds: (data['watcherIds'] as List<dynamic>?)?.cast<String>(),
     );
   }
 
@@ -91,6 +104,7 @@ class Listing {
         'photoUrl': photoUrl,
         'status': status.name,
         'liveForSeconds': liveFor.inSeconds,
+        'watcherIds': watcherIds,
       };
 }
 

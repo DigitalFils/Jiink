@@ -1,5 +1,6 @@
 import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { logger } from "firebase-functions";
+import { FieldValue } from "firebase-admin/firestore";
 import { db, messaging } from "./admin";
 
 const COMPONENT = "notifications";
@@ -24,10 +25,11 @@ export async function sendPushToUser(
     (_, i) => response.responses[i]?.error?.code === "messaging/registration-token-not-registered"
   );
   if (staleTokens.length > 0) {
-    await userSnap.ref.set(
-      { fcmTokens: tokens.filter((t) => !staleTokens.includes(t)) },
-      { merge: true }
-    );
+    // arrayRemove is a server-side atomic transform, not a read-modify-write
+    // — unlike overwriting the whole array from this stale read, it composes
+    // safely with a concurrent AppState.registerFcmToken() arrayUnion on
+    // another device instead of racing it and dropping the new token.
+    await userSnap.ref.set({ fcmTokens: FieldValue.arrayRemove(...staleTokens) }, { merge: true });
   }
 }
 
@@ -107,16 +109,18 @@ export const onOrderCreated = onDocumentCreated("orders/{orderId}", async (event
   const listingSnap = await db.collection("listings").doc(order.listingId as string).get();
   const listingTitle = (listingSnap.data()?.title as string | undefined) ?? "your item";
 
-  await sendPushToUser(
-    order.sellerId as string,
-    { title: "Sold!", body: `${listingTitle} just sold.` },
-    { type: "sale", listingId: order.listingId as string }
-  );
-  await sendPushToUser(
-    order.buyerId as string,
-    { title: "Payment confirmed", body: `Your purchase of ${listingTitle} is confirmed.` },
-    { type: "purchase", listingId: order.listingId as string }
-  );
+  await Promise.all([
+    sendPushToUser(
+      order.sellerId as string,
+      { title: "Sold!", body: `${listingTitle} just sold.` },
+      { type: "sale", listingId: order.listingId as string }
+    ),
+    sendPushToUser(
+      order.buyerId as string,
+      { title: "Payment confirmed", body: `Your purchase of ${listingTitle} is confirmed.` },
+      { type: "purchase", listingId: order.listingId as string }
+    ),
+  ]);
   logger.info("Sent sale push to buyer and seller", { component: COMPONENT, listingId: order.listingId });
 });
 

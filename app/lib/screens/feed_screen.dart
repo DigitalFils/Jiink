@@ -57,15 +57,22 @@ class _FeedScreenState extends State<FeedScreen> {
   }
 
   Future<void> _saveSearch(String buyerId) async {
-    await context.read<SavedSearchesRepository>().save(
-          buyerId: buyerId,
-          query: _searchController.text.trim(),
-          category: _category,
-          maxPriceCents: _maxPriceCents,
-        );
-    if (mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Search saved — we\'ll flag new matches.')));
+    try {
+      await context.read<SavedSearchesRepository>().save(
+            buyerId: buyerId,
+            query: _searchController.text.trim(),
+            category: _category,
+            maxPriceCents: _maxPriceCents,
+          );
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Search saved — we\'ll flag new matches.')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Could not save search: $e')));
+      }
     }
   }
 

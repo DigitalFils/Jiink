@@ -376,6 +376,7 @@ class ChatThreadSummary {
     required this.listingId,
     required this.buyerId,
     required this.listingTitle,
+    required this.otherPartyId,
     required this.otherPartyName,
     required this.lastMessageText,
     required this.lastMessageAt,
@@ -385,6 +386,10 @@ class ChatThreadSummary {
   final String listingId;
   final String buyerId;
   final String listingTitle;
+
+  /// So a blocked user's threads can be filtered out client-side, the same
+  /// way blocked sellers' listings are — see Profile.blockedUserIds.
+  final String otherPartyId;
   final String otherPartyName;
   final String lastMessageText;
   final DateTime lastMessageAt;

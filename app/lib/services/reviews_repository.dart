@@ -12,21 +12,10 @@ class ReviewsRepository {
       _firestore.collection('reviews');
 
   /// The order that would make [buyerId] eligible to review [listingId], if
-  /// they actually bought it. Orders only ever come from the Stripe
-  /// webhook, so finding one here is proof of a real completed purchase.
-  Future<PurchaseOrder?> orderForPurchase({required String buyerId, required String listingId}) async {
-    final query = await _firestore
-        .collection('orders')
-        .where('buyerId', isEqualTo: buyerId)
-        .where('listingId', isEqualTo: listingId)
-        .limit(1)
-        .get();
-    if (query.docs.isEmpty) return null;
-    return PurchaseOrder.fromFirestore(query.docs.first);
-  }
-
-  /// Live version of [orderForPurchase] — used so a buyer sees the seller's
-  /// tracking number appear without needing to re-open the screen.
+  /// they actually bought it — live, so a buyer also sees the seller's
+  /// tracking number appear without needing to re-open the screen. Orders
+  /// only ever come from the Stripe webhook, so finding one here is proof
+  /// of a real completed purchase.
   Stream<PurchaseOrder?> orderForPurchaseStream({
     required String buyerId,
     required String listingId,

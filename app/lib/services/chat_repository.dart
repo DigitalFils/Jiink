@@ -37,16 +37,16 @@ class ChatRepository {
               final data = doc.data();
               final participants =
                   Map<String, String>.from(data['participantNames'] as Map);
-              final otherName = participants.entries
-                  .firstWhere((entry) => entry.key != uid,
-                      orElse: () => const MapEntry('', 'Seller'))
-                  .value;
+              final otherEntry = participants.entries.firstWhere(
+                  (entry) => entry.key != uid,
+                  orElse: () => const MapEntry('', 'Seller'));
               return ChatThreadSummary(
                 threadId: doc.id,
                 listingId: data['listingId'] as String,
                 buyerId: data['buyerId'] as String,
                 listingTitle: data['listingTitle'] as String,
-                otherPartyName: otherName,
+                otherPartyId: otherEntry.key,
+                otherPartyName: otherEntry.value,
                 lastMessageText: data['lastMessageText'] as String? ?? '',
                 lastMessageAt:
                     (data['lastMessageAt'] as Timestamp?)?.toDate() ??

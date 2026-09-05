@@ -44,6 +44,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
   bool _savingTracking = false;
   final _commentController = TextEditingController();
   final _trackingController = TextEditingController();
+  final _carrierController = TextEditingController();
 
   Offer? _myOffer;
   StreamSubscription<Offer?>? _myOfferSub;
@@ -103,6 +104,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
     _pendingOffersSub?.cancel();
     _commentController.dispose();
     _trackingController.dispose();
+    _carrierController.dispose();
     super.dispose();
   }
 
@@ -179,9 +181,11 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
     if (order == null || trackingNumber.isEmpty) return;
     setState(() => _savingTracking = true);
     try {
+      final carrier = _carrierController.text.trim();
       await context.read<ReviewsRepository>().setTracking(
             orderId: order.id,
             trackingNumber: trackingNumber,
+            carrier: carrier.isEmpty ? null : carrier,
           );
     } catch (e) {
       if (mounted) {
@@ -451,6 +455,11 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                   TextField(
                     controller: _trackingController,
                     decoration: const InputDecoration(hintText: 'Tracking number'),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _carrierController,
+                    decoration: const InputDecoration(hintText: 'Carrier (optional)'),
                   ),
                   const SizedBox(height: 8),
                   ElevatedButton(

@@ -1,3 +1,4 @@
+import { FieldValue } from "firebase-admin/firestore";
 import { FakeFirestore } from "./helpers/fakeFirestore";
 import { makeFakeMessaging } from "./helpers/fakeMessaging";
 
@@ -62,8 +63,10 @@ describe("sendPushToUser", () => {
 
     await sendPushToUser(BUYER, { title: "Hi", body: "there" });
 
+    // Stored as an arrayRemove transform, not a plain overwritten array — so
+    // it composes safely with a concurrent arrayUnion instead of racing it.
     const stored = fakeDb.store.get(`users/${BUYER}`);
-    expect(stored?.fcmTokens).toEqual(["tok-good"]);
+    expect(FieldValue.arrayRemove("tok-stale").isEqual(stored?.fcmTokens as FieldValue)).toBe(true);
   });
 });
 

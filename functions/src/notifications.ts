@@ -1,6 +1,7 @@
 import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
-import { FieldValue } from "firebase-admin/firestore";
+import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { db, messaging } from "./admin";
 
 const COMPONENT = "notifications";
@@ -191,3 +192,65 @@ export const onNewListingMatchSavedSearches = onDocumentCreated(
     }
   }
 );
+
+// Listings expire `liveForSeconds` after `postedAt` (there's no stored
+// `expiryAt`), and how long that is can vary per listing, so it's computed
+// per-doc below rather than pushed into the query. A reminder should land
+// once, with enough runway for the seller to act — 25-30 minutes out — and
+// a 10-minute schedule comfortably covers that window without doubling up.
+const EXPIRY_REMINDER_WINDOW_START_MINUTES = 25;
+const EXPIRY_REMINDER_WINDOW_END_MINUTES = 30;
+
+/**
+ * Reminds sellers to bump a listing shortly before it expires. Fetches every
+ * live listing (a single-field equality query, so no composite index is
+ * needed) and filters in memory for the ones landing in the reminder window
+ * — the same small-demo-scale tradeoff `onNewListingMatchSavedSearches`
+ * above makes, and fine at this app's current scale.
+ */
+export const remindSellersOfExpiringListings = onSchedule("every 10 minutes", async () => {
+  const now = Date.now();
+  const windowStartMs = now + EXPIRY_REMINDER_WINDOW_START_MINUTES * 60_000;
+  const windowEndMs = now + EXPIRY_REMINDER_WINDOW_END_MINUTES * 60_000;
+
+  const liveSnap = await db.collection("listings").where("status", "==", "live").get();
+
+  const expiring = liveSnap.docs.filter((doc) => {
+    const listing = doc.data();
+    if (listing.reminderSent === true) return false;
+
+    const postedAt = listing.postedAt as Timestamp | undefined;
+    const liveForSeconds = listing.liveForSeconds as number | undefined;
+    if (!postedAt || liveForSeconds == null) return false;
+
+    const expiresAtMs = postedAt.toMillis() + liveForSeconds * 1000;
+    return expiresAtMs >= windowStartMs && expiresAtMs <= windowEndMs;
+  });
+
+  await Promise.all(
+    expiring.map(async (doc) => {
+      const listing = doc.data();
+      const listingId = doc.ref.path.split("/").pop() as string;
+      const title = (listing.title as string | undefined) ?? "Your listing";
+
+      await sendPushToUser(
+        listing.sellerId as string,
+        {
+          title: "Listing expiring soon",
+          body: `${title} expires in ~30 minutes — bump it to keep it live.`,
+        },
+        { type: "expiring-soon", listingId }
+      );
+      // Targeted merge so this touches only `reminderSent`, not the rest of
+      // the listing doc — same reasoning as the arrayRemove merge above.
+      await doc.ref.set({ reminderSent: true }, { merge: true });
+    })
+  );
+
+  if (expiring.length > 0) {
+    logger.info("Sent expiring-soon reminders", {
+      component: COMPONENT,
+      count: expiring.length,
+    });
+  }
+});

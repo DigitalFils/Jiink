@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../theme.dart';
 import 'publish_screen.dart';
 
 /// Entry point for the core "snap it" loop: opens the camera immediately,
@@ -44,7 +45,17 @@ class _CaptureScreenState extends State<CaptureScreen> {
   @override
   Widget build(BuildContext context) {
     return const Scaffold(
-      body: Center(child: CircularProgressIndicator()),
+      backgroundColor: S8llColors.black,
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(color: S8llColors.lime),
+            SizedBox(height: 16),
+            Text('Opening camera…', style: TextStyle(color: Colors.white70)),
+          ],
+        ),
+      ),
     );
   }
 }

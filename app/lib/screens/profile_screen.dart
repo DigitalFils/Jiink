@@ -6,6 +6,7 @@ import '../services/auth_service.dart';
 import '../services/payments_service.dart';
 import '../services/reviews_repository.dart';
 import '../state/app_state.dart';
+import '../state/theme_controller.dart';
 import '../theme.dart';
 import '../widgets/listing_card.dart';
 import '../widgets/seller_rating_badge.dart';
@@ -55,10 +56,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                const CircleAvatar(
+                CircleAvatar(
                   radius: 32,
-                  backgroundColor: S8llColors.charcoal,
-                  child: Icon(Icons.person, color: S8llColors.lime, size: 32),
+                  backgroundColor: context.s8ll.surfaceHigh,
+                  child: const Icon(Icons.person, color: S8llColors.lime, size: 32),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -70,7 +71,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
                       ),
                       const SizedBox(height: 4),
-                      Text(profile?.city ?? '', style: const TextStyle(color: S8llColors.grey)),
+                      Text(profile?.city ?? '', style: TextStyle(color: context.s8ll.textSecondary)),
                       const SizedBox(height: 4),
                       SellerRatingBadge(rating: _rating),
                     ],
@@ -87,15 +88,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
+              'Appearance',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: SegmentedButton<ThemeMode>(
+              segments: const [
+                ButtonSegment(value: ThemeMode.light, label: Text('Light'), icon: Icon(Icons.light_mode_outlined)),
+                ButtonSegment(value: ThemeMode.dark, label: Text('Dark'), icon: Icon(Icons.dark_mode_outlined)),
+                ButtonSegment(value: ThemeMode.system, label: Text('Auto'), icon: Icon(Icons.brightness_auto_outlined)),
+              ],
+              selected: {context.watch<ThemeController>().mode},
+              onSelectionChanged: (selection) =>
+                  context.read<ThemeController>().setMode(selection.first),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
               'Your listings',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
             ),
           ),
           if (myListings.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(16),
+            Padding(
+              padding: const EdgeInsets.all(16),
               child: Text('Nothing listed yet — tap the camera to snap your first item.',
-                  style: TextStyle(color: S8llColors.grey)),
+                  style: TextStyle(color: context.s8ll.textSecondary)),
             )
           else
             for (final listing in myListings)
@@ -122,7 +145,7 @@ class _PayoutStatusCard extends StatelessWidget {
       child: ListTile(
         leading: Icon(
           payoutsEnabled ? Icons.check_circle : Icons.account_balance_outlined,
-          color: payoutsEnabled ? S8llColors.lime : S8llColors.grey,
+          color: payoutsEnabled ? S8llColors.lime : context.s8ll.textSecondary,
         ),
         title: Text(payoutsEnabled ? 'Payouts set up' : 'Payouts not set up'),
         subtitle: Text(

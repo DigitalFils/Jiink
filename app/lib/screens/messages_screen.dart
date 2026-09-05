@@ -23,8 +23,8 @@ class MessagesScreen extends StatelessWidget {
           final threads =
               (snapshot.data ?? const []).where((t) => !blocked.contains(t.otherPartyId)).toList();
           if (threads.isEmpty) {
-            return const Center(
-              child: Text('No conversations yet', style: TextStyle(color: S8llColors.grey)),
+            return Center(
+              child: Text('No conversations yet', style: TextStyle(color: context.s8ll.textSecondary)),
             );
           }
           return ListView.builder(
@@ -42,7 +42,7 @@ class MessagesScreen extends StatelessWidget {
                   thread.listingTitle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: S8llColors.grey, fontSize: 12),
+                  style: TextStyle(color: context.s8ll.textSecondary, fontSize: 12),
                 ),
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:s8ll/screens/auth_screen.dart';
 import 'package:s8ll/services/auth_service.dart';
+import 'package:s8ll/theme.dart';
 
 class FakeAuthService implements AuthServiceBase {
   bool signUpCalled = false;
@@ -33,7 +34,9 @@ void main() {
   testWidgets('shows validation errors instead of submitting when fields are empty',
       (WidgetTester tester) async {
     final fakeAuth = FakeAuthService();
-    await tester.pumpWidget(MaterialApp(home: AuthScreen(authService: fakeAuth)));
+    await tester.pumpWidget(
+      MaterialApp(theme: buildS8llTheme(), home: AuthScreen(authService: fakeAuth)),
+    );
 
     await tester.tap(find.text('Create account'));
     await tester.pumpAndSettle();
@@ -44,7 +47,9 @@ void main() {
 
   testWidgets('submits sign-up with the entered details', (WidgetTester tester) async {
     final fakeAuth = FakeAuthService();
-    await tester.pumpWidget(MaterialApp(home: AuthScreen(authService: fakeAuth)));
+    await tester.pumpWidget(
+      MaterialApp(theme: buildS8llTheme(), home: AuthScreen(authService: fakeAuth)),
+    );
 
     await tester.enterText(find.widgetWithText(TextFormField, 'Name'), 'Jordan');
     await tester.enterText(find.widgetWithText(TextFormField, 'City'), 'Manchester');
@@ -61,7 +66,9 @@ void main() {
 
   testWidgets('toggling switches to the sign-in form', (WidgetTester tester) async {
     final fakeAuth = FakeAuthService();
-    await tester.pumpWidget(MaterialApp(home: AuthScreen(authService: fakeAuth)));
+    await tester.pumpWidget(
+      MaterialApp(theme: buildS8llTheme(), home: AuthScreen(authService: fakeAuth)),
+    );
 
     expect(find.text('Create account'), findsOneWidget);
     await tester.tap(find.text('Already have an account? Sign in'));

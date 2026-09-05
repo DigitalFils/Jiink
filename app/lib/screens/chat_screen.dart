@@ -77,7 +77,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       return Center(
                         child: Text(
                           'Say hi about "${listing.title}"',
-                          style: const TextStyle(color: S8llColors.grey),
+                          style: TextStyle(color: context.s8ll.textSecondary),
                         ),
                       );
                     }
@@ -95,13 +95,13 @@ class _ChatScreenState extends State<ChatScreen> {
                             padding:
                                 const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                             decoration: BoxDecoration(
-                              color: fromSelf ? S8llColors.lime : S8llColors.charcoal,
+                              color: fromSelf ? S8llColors.lime : context.s8ll.surfaceHigh,
                               borderRadius: BorderRadius.circular(16),
                             ),
                             child: Text(
                               message.text,
                               style: TextStyle(
-                                color: fromSelf ? S8llColors.black : Colors.white,
+                                color: fromSelf ? S8llColors.black : context.s8ll.textPrimary,
                               ),
                             ),
                           ),

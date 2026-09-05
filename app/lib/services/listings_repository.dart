@@ -49,6 +49,7 @@ class ListingsRepository {
     required DeliveryMethod delivery,
     required File photo,
     String description = '',
+    ListingCategory category = ListingCategory.other,
   }) async {
     final photoUrl = await _storage.uploadListingPhoto(uid: sellerId, file: photo);
     final listing = Listing(
@@ -62,6 +63,7 @@ class ListingsRepository {
       postedAt: DateTime.now(),
       description: description,
       photoUrl: photoUrl,
+      category: category,
     );
     await _listings.add(listing.toCreateMap());
   }

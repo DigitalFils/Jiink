@@ -92,6 +92,19 @@ class FakeCollectionRef {
   where(field: string, _op: string, value: unknown) {
     return new FakeQuery(this.store, this.name, field, value);
   }
+
+  /** Every direct document in this collection — not documents nested one
+   * more level down in some subcollection. */
+  async get() {
+    const prefix = `${this.name}/`;
+    const docs = [...this.store.entries()]
+      .filter(([path]) => path.startsWith(prefix) && !path.slice(prefix.length).includes("/"))
+      .map(([path, data]) => ({
+        data: () => data,
+        ref: new FakeDocRef(this.store, path),
+      }));
+    return { empty: docs.length === 0, docs };
+  }
 }
 
 export class FakeFirestore {

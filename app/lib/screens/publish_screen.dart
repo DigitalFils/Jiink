@@ -21,6 +21,7 @@ class _PublishScreenState extends State<PublishScreen> {
   final _titleController = TextEditingController();
   final _priceController = TextEditingController();
   DeliveryMethod _delivery = DeliveryMethod.both;
+  ListingCategory _category = ListingCategory.other;
   bool _publishing = false;
   String? _error;
 
@@ -44,6 +45,7 @@ class _PublishScreenState extends State<PublishScreen> {
             priceCents: (pounds * 100).round(),
             delivery: _delivery,
             photo: File(widget.photoPath),
+            category: _category,
           );
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(
@@ -92,6 +94,18 @@ class _PublishScreenState extends State<PublishScreen> {
                   if (value == null || value.isEmpty) return 'Required';
                   if (double.tryParse(value) == null) return 'Enter a number';
                   return null;
+                },
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<ListingCategory>(
+                initialValue: _category,
+                decoration: const InputDecoration(labelText: 'Category'),
+                items: [
+                  for (final category in ListingCategory.values)
+                    DropdownMenuItem(value: category, child: Text(category.label)),
+                ],
+                onChanged: (value) {
+                  if (value != null) setState(() => _category = value);
                 },
               ),
               const SizedBox(height: 12),

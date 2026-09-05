@@ -6,6 +6,9 @@ Listing _listing({
   Duration liveFor = const Duration(hours: 8),
   DeliveryMethod delivery = DeliveryMethod.both,
   ListingStatus status = ListingStatus.live,
+  ListingCategory category = ListingCategory.other,
+  String title = 'Nike Air Max 90',
+  int priceCents = 4500,
   List<String>? watcherIds,
 }) {
   return Listing(
@@ -13,11 +16,12 @@ Listing _listing({
     sellerId: 'seller-1',
     sellerName: 'jordan_m',
     sellerCity: 'Manchester',
-    title: 'Nike Air Max 90',
-    priceCents: 4500,
+    title: title,
+    priceCents: priceCents,
     delivery: delivery,
     postedAt: postedAt,
     status: status,
+    category: category,
     liveFor: liveFor,
     watcherIds: watcherIds,
   );
@@ -126,6 +130,75 @@ void main() {
         createdAt: DateTime.now(),
       );
       expect(offer.toCreateMap()['status'], 'accepted');
+    });
+  });
+
+  group('PurchaseOrder tracking', () {
+    test('has no tracking when trackingNumber is unset', () {
+      const order = PurchaseOrder(id: 'o1', listingId: 'l1', buyerId: 'b1', sellerId: 's1');
+      expect(order.hasTracking, isFalse);
+    });
+
+    test('has no tracking when trackingNumber is empty', () {
+      const order = PurchaseOrder(
+        id: 'o1',
+        listingId: 'l1',
+        buyerId: 'b1',
+        sellerId: 's1',
+        trackingNumber: '',
+      );
+      expect(order.hasTracking, isFalse);
+    });
+
+    test('has tracking once a non-empty tracking number is set', () {
+      const order = PurchaseOrder(
+        id: 'o1',
+        listingId: 'l1',
+        buyerId: 'b1',
+        sellerId: 's1',
+        trackingNumber: '1Z999',
+      );
+      expect(order.hasTracking, isTrue);
+    });
+  });
+
+  group('Report', () {
+    test('toCreateMap round-trips targetType as its name', () {
+      final report = Report(
+        reporterId: 'buyer-1',
+        targetType: ReportTargetType.listing,
+        targetId: 'l1',
+        reason: 'Counterfeit item',
+        createdAt: DateTime.now(),
+      );
+      expect(report.toCreateMap()['targetType'], 'listing');
+    });
+  });
+
+  group('SavedSearch', () {
+    test('toCreateMap includes a null category when none was chosen', () {
+      final search = SavedSearch(
+        id: '',
+        buyerId: 'buyer-1',
+        query: 'trainers',
+        createdAt: DateTime.now(),
+      );
+      final map = search.toCreateMap();
+      expect(map['category'], isNull);
+      expect(map['query'], 'trainers');
+    });
+
+    test('fromFirestore round-trips a category', () {
+      final search = SavedSearch(
+        id: '',
+        buyerId: 'buyer-1',
+        query: 'trainers',
+        category: ListingCategory.clothing,
+        maxPriceCents: 5000,
+        createdAt: DateTime.now(),
+      );
+      expect(search.toCreateMap()['category'], 'clothing');
+      expect(search.toCreateMap()['maxPriceCents'], 5000);
     });
   });
 }

@@ -12,6 +12,19 @@ enum DeliveryMethod {
 
 enum ListingStatus { live, sold }
 
+enum ListingCategory {
+  clothing('Clothing'),
+  electronics('Electronics'),
+  home('Home'),
+  sportsAndOutdoors('Sports & outdoors'),
+  toysAndGames('Toys & games'),
+  other('Other');
+
+  const ListingCategory(this.label);
+
+  final String label;
+}
+
 class Listing {
   Listing({
     required this.id,
@@ -25,6 +38,7 @@ class Listing {
     this.description = '',
     this.photoUrl,
     this.status = ListingStatus.live,
+    this.category = ListingCategory.other,
     Duration? liveFor,
     List<String>? watcherIds,
   })  : liveFor = liveFor ?? const Duration(hours: 8),
@@ -35,6 +49,7 @@ class Listing {
   final String sellerName;
   final String sellerCity;
   final String title;
+  final ListingCategory category;
 
   /// Price in pence — the unit Stripe actually charges in. Never do money
   /// math in pounds; round-trip through this field.
@@ -87,6 +102,7 @@ class Listing {
       description: data['description'] as String? ?? '',
       photoUrl: data['photoUrl'] as String?,
       status: ListingStatus.values.byName(data['status'] as String? ?? 'live'),
+      category: ListingCategory.values.byName(data['category'] as String? ?? 'other'),
       liveFor: Duration(seconds: data['liveForSeconds'] as int? ?? 28800),
       watcherIds: (data['watcherIds'] as List<dynamic>?)?.cast<String>(),
     );
@@ -103,6 +119,7 @@ class Listing {
         'description': description,
         'photoUrl': photoUrl,
         'status': status.name,
+        'category': category.name,
         'liveForSeconds': liveFor.inSeconds,
         'watcherIds': watcherIds,
       };
@@ -140,12 +157,22 @@ class PurchaseOrder {
     required this.listingId,
     required this.buyerId,
     required this.sellerId,
+    this.trackingNumber,
+    this.carrier,
   });
 
   final String id;
   final String listingId;
   final String buyerId;
   final String sellerId;
+
+  /// Set by the seller after the sale — see the scoped `orders` update rule
+  /// in firestore.rules, which only lets these two fields (plus a
+  /// timestamp) change, and only by the seller who owns the order.
+  final String? trackingNumber;
+  final String? carrier;
+
+  bool get hasTracking => trackingNumber != null && trackingNumber!.isNotEmpty;
 
   factory PurchaseOrder.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data()!;
@@ -154,6 +181,8 @@ class PurchaseOrder {
       listingId: data['listingId'] as String,
       buyerId: data['buyerId'] as String,
       sellerId: data['sellerId'] as String,
+      trackingNumber: data['trackingNumber'] as String?,
+      carrier: data['carrier'] as String?,
     );
   }
 }
@@ -262,6 +291,79 @@ class Offer {
         'sellerId': sellerId,
         'offerCents': offerCents,
         'status': status.name,
+        'createdAt': Timestamp.fromDate(createdAt),
+      };
+}
+
+enum ReportTargetType { listing, user }
+
+/// A flag raised against a listing or a user. Write-only from the client —
+/// see firestore.rules: nobody can read these back through the app, only
+/// through the Firebase console/an admin tool, which is standard for a
+/// moderation queue that shouldn't be visible to the person being reported.
+class Report {
+  const Report({
+    required this.reporterId,
+    required this.targetType,
+    required this.targetId,
+    required this.reason,
+    required this.createdAt,
+  });
+
+  final String reporterId;
+  final ReportTargetType targetType;
+  final String targetId;
+  final String reason;
+  final DateTime createdAt;
+
+  Map<String, dynamic> toCreateMap() => {
+        'reporterId': reporterId,
+        'targetType': targetType.name,
+        'targetId': targetId,
+        'reason': reason,
+        'createdAt': Timestamp.fromDate(createdAt),
+      };
+}
+
+/// A buyer's saved search — reapplied from the feed, and matched against
+/// new listings server-side (see functions/src/notifications.ts) so the
+/// buyer gets a push instead of having to keep checking back.
+class SavedSearch {
+  const SavedSearch({
+    required this.id,
+    required this.buyerId,
+    required this.query,
+    required this.createdAt,
+    this.category,
+    this.maxPriceCents,
+  });
+
+  final String id;
+  final String buyerId;
+  final String query;
+  final ListingCategory? category;
+  final int? maxPriceCents;
+  final DateTime createdAt;
+
+  factory SavedSearch.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data()!;
+    return SavedSearch(
+      id: doc.id,
+      buyerId: data['buyerId'] as String,
+      query: data['query'] as String? ?? '',
+      category: (data['category'] as String?) != null
+          ? ListingCategory.values.byName(data['category'] as String)
+          : null,
+      maxPriceCents: data['maxPriceCents'] as int?,
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toCreateMap() => {
+        'buyerId': buyerId,
+        'query': query,
+        'category': category?.name,
+        'maxPriceCents': maxPriceCents,
         'createdAt': Timestamp.fromDate(createdAt),
       };
 }

@@ -16,12 +16,21 @@ class Profile {
     required this.displayName,
     required this.city,
     required this.payoutsEnabled,
+    this.blockedUserIds = const [],
   });
 
   final String uid;
   final String displayName;
   final String city;
   final bool payoutsEnabled;
+
+  /// Sellers this user has blocked — their listings and chat threads are
+  /// filtered out client-side. This lives on the blocker's own profile doc,
+  /// which they already have full read/write access to, so blocking needs
+  /// no new Firestore rule at all.
+  final List<String> blockedUserIds;
+
+  bool hasBlocked(String uid) => blockedUserIds.contains(uid);
 }
 
 class AppState extends ChangeNotifier {
@@ -61,6 +70,7 @@ class AppState extends ChangeNotifier {
       displayName: data['displayName'] as String? ?? 'Seller',
       city: data['city'] as String? ?? '',
       payoutsEnabled: data['payoutsEnabled'] as bool? ?? false,
+      blockedUserIds: (data['blockedUserIds'] as List<dynamic>?)?.cast<String>() ?? const [],
     );
     notifyListeners();
   }
@@ -81,6 +91,7 @@ class AppState extends ChangeNotifier {
     required DeliveryMethod delivery,
     required File photo,
     String description = '',
+    ListingCategory category = ListingCategory.other,
   }) {
     final profile = _profile;
     if (profile == null) {
@@ -95,6 +106,7 @@ class AppState extends ChangeNotifier {
       delivery: delivery,
       photo: photo,
       description: description,
+      category: category,
     );
   }
 
@@ -102,6 +114,25 @@ class AppState extends ChangeNotifier {
 
   Future<void> setWatching(String listingId, {required bool watching}) =>
       _repository.setWatching(listingId, uid, watching: watching);
+
+  /// Blocking is just an update to this user's own profile doc, which they
+  /// already have full read/write access to — no Firestore rule needed.
+  Future<void> setBlocked(String otherUid, {required bool blocked}) {
+    return FirebaseFirestore.instance.collection('users').doc(uid).update({
+      'blockedUserIds':
+          blocked ? FieldValue.arrayUnion([otherUid]) : FieldValue.arrayRemove([otherUid]),
+    });
+  }
+
+  /// Registers this device's FCM token so Cloud Functions can push to it —
+  /// stored as a set (arrayUnion) since the same account can be signed in
+  /// on more than one device.
+  Future<void> registerFcmToken(String token) {
+    return FirebaseFirestore.instance.collection('users').doc(uid).set(
+      {'fcmTokens': FieldValue.arrayUnion([token])},
+      SetOptions(merge: true),
+    );
+  }
 
   @override
   void dispose() {

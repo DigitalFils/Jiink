@@ -8,6 +8,7 @@ import '../models.dart';
 import '../services/offers_repository.dart';
 import '../services/payments_service.dart';
 import '../services/reviews_repository.dart';
+import '../services/trust_safety_repository.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/countdown_badge.dart';
@@ -33,11 +34,16 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
 
   SellerRating? _sellerRating;
   PurchaseOrder? _myOrder;
+  StreamSubscription<PurchaseOrder?>? _myOrderSub;
+  PurchaseOrder? _saleOrder;
+  StreamSubscription<PurchaseOrder?>? _saleOrderSub;
   Review? _existingReview;
   StreamSubscription<Review?>? _reviewSub;
   int _draftRating = 0;
   bool _submittingReview = false;
+  bool _savingTracking = false;
   final _commentController = TextEditingController();
+  final _trackingController = TextEditingController();
 
   Offer? _myOffer;
   StreamSubscription<Offer?>? _myOfferSub;
@@ -59,14 +65,20 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
     final isSold = widget.listing.status == ListingStatus.sold;
     final isMine = widget.listing.sellerId == uid;
     if (isSold && !isMine) {
-      reviews
-          .orderForPurchase(buyerId: uid, listingId: widget.listing.id)
-          .then((order) {
+      _myOrderSub = reviews
+          .orderForPurchaseStream(buyerId: uid, listingId: widget.listing.id)
+          .listen((order) {
         if (!mounted || order == null) return;
         setState(() => _myOrder = order);
-        _reviewSub = reviews.reviewForListing(widget.listing.id).listen((review) {
+        _reviewSub ??= reviews.reviewForListing(widget.listing.id).listen((review) {
           if (mounted) setState(() => _existingReview = review);
         });
+      });
+    } else if (isSold && isMine) {
+      _saleOrderSub = reviews
+          .orderForSaleStream(sellerId: uid, listingId: widget.listing.id)
+          .listen((order) {
+        if (mounted) setState(() => _saleOrder = order);
       });
     }
 
@@ -85,9 +97,12 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
   @override
   void dispose() {
     _reviewSub?.cancel();
+    _myOrderSub?.cancel();
+    _saleOrderSub?.cancel();
     _myOfferSub?.cancel();
     _pendingOffersSub?.cancel();
     _commentController.dispose();
+    _trackingController.dispose();
     super.dispose();
   }
 
@@ -154,6 +169,95 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text('Could not respond to offer: $e')));
+      }
+    }
+  }
+
+  Future<void> _saveTracking() async {
+    final order = _saleOrder;
+    final trackingNumber = _trackingController.text.trim();
+    if (order == null || trackingNumber.isEmpty) return;
+    setState(() => _savingTracking = true);
+    try {
+      await context.read<ReviewsRepository>().setTracking(
+            orderId: order.id,
+            trackingNumber: trackingNumber,
+          );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Could not save tracking: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _savingTracking = false);
+    }
+  }
+
+  Future<void> _showReportDialog() async {
+    final reasonController = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Report this listing'),
+        content: TextField(
+          controller: reasonController,
+          autofocus: true,
+          maxLines: 3,
+          decoration: const InputDecoration(hintText: "What's wrong with it?"),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(reasonController.text.trim()),
+            child: const Text('Submit report'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || reason == null || reason.isEmpty) return;
+
+    try {
+      await context.read<TrustSafetyRepository>().report(
+            reporterId: context.read<AppState>().uid,
+            targetType: ReportTargetType.listing,
+            targetId: widget.listing.id,
+            reason: reason,
+          );
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Report submitted — thank you.')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Could not submit report: $e')));
+      }
+    }
+  }
+
+  Future<void> _toggleBlockSeller() async {
+    final appState = context.read<AppState>();
+    final alreadyBlocked = appState.profile?.hasBlocked(widget.listing.sellerId) ?? false;
+    try {
+      await appState.setBlocked(widget.listing.sellerId, blocked: !alreadyBlocked);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              alreadyBlocked
+                  ? 'Unblocked ${widget.listing.sellerName}.'
+                  : "Blocked ${widget.listing.sellerName} — their listings won't show in your feed.",
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Could not update: $e')));
       }
     }
   }
@@ -234,12 +338,32 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final listing = widget.listing;
-    final uid = context.watch<AppState>().uid;
+    final appState = context.watch<AppState>();
+    final uid = appState.uid;
     final isMine = listing.sellerId == uid;
     final isSold = listing.status == ListingStatus.sold;
+    final hasBlockedSeller = appState.profile?.hasBlocked(listing.sellerId) ?? false;
 
     return Scaffold(
-      appBar: AppBar(title: Text(listing.title)),
+      appBar: AppBar(
+        title: Text(listing.title),
+        actions: [
+          if (!isMine)
+            PopupMenuButton<String>(
+              onSelected: (value) {
+                if (value == 'report') _showReportDialog();
+                if (value == 'block') _toggleBlockSeller();
+              },
+              itemBuilder: (context) => [
+                const PopupMenuItem(value: 'report', child: Text('Report listing')),
+                PopupMenuItem(
+                  value: 'block',
+                  child: Text(hasBlockedSeller ? 'Unblock seller' : 'Block seller'),
+                ),
+              ],
+            ),
+        ],
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -305,8 +429,63 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
             const SizedBox(height: 24),
             if (isSold) ...[
               const Text('This item has sold.', style: TextStyle(color: S8llColors.grey)),
-              if (_myOrder != null) ...[
+              if (isMine && _saleOrder != null) ...[
                 const SizedBox(height: 16),
+                Text('Shipment tracking', style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 8),
+                if (_saleOrder!.hasTracking)
+                  Row(
+                    children: [
+                      const Icon(Icons.local_shipping, color: S8llColors.lime, size: 18),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          _saleOrder!.carrier == null
+                              ? _saleOrder!.trackingNumber!
+                              : '${_saleOrder!.trackingNumber} · ${_saleOrder!.carrier}',
+                        ),
+                      ),
+                    ],
+                  )
+                else ...[
+                  TextField(
+                    controller: _trackingController,
+                    decoration: const InputDecoration(hintText: 'Tracking number'),
+                  ),
+                  const SizedBox(height: 8),
+                  ElevatedButton(
+                    onPressed: _savingTracking ? null : _saveTracking,
+                    child: Text(_savingTracking ? 'Saving…' : 'Save tracking number'),
+                  ),
+                ],
+              ],
+              if (!isMine && _myOrder != null) ...[
+                const SizedBox(height: 16),
+                if (_myOrder!.hasTracking)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.local_shipping, color: S8llColors.lime, size: 18),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            _myOrder!.carrier == null
+                                ? 'Tracking: ${_myOrder!.trackingNumber}'
+                                : 'Tracking: ${_myOrder!.trackingNumber} · ${_myOrder!.carrier}',
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 12),
+                    child: Text(
+                      "The seller hasn't added tracking yet.",
+                      style: TextStyle(color: S8llColors.grey),
+                    ),
+                  ),
                 if (_existingReview != null)
                   Row(
                     children: [

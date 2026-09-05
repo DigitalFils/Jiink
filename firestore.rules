@@ -51,12 +51,43 @@ service cloud.firestore {
       }
     }
 
-    // Orders only ever come from the Stripe webhook (Admin SDK). Buyer and
-    // seller can read their own.
+    // Orders only ever come from the Stripe webhook (Admin SDK) — clients
+    // can never create or delete one. Buyer and seller can read their own.
+    // The one thing a client can do is the seller adding a shipment
+    // tracking number: scoped via diff().affectedKeys() to just those
+    // fields, same pattern as watching a listing, so it can never become a
+    // backdoor to editing amountCents/status/anything else.
     match /orders/{orderId} {
       allow read: if request.auth != null
         && (request.auth.uid == resource.data.buyerId || request.auth.uid == resource.data.sellerId);
-      allow write: if false;
+      allow update: if request.auth != null
+        && request.auth.uid == resource.data.sellerId
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['trackingNumber', 'carrier', 'trackingUpdatedAt']);
+      allow create, delete: if false;
+    }
+
+    // A flag raised against a listing or a user. Write-only — this is a
+    // moderation queue, not something the reporter (or the person reported)
+    // can read back through the app; a human reviews these via the
+    // Firebase console or an admin tool, not the client.
+    match /reports/{reportId} {
+      allow read, update, delete: if false;
+      allow create: if request.auth != null
+        && request.auth.uid == request.resource.data.reporterId
+        && request.resource.data.targetType in ['listing', 'user']
+        && request.resource.data.reason is string
+        && request.resource.data.reason.size() > 0
+        && request.resource.data.reason.size() <= 500;
+    }
+
+    // A buyer's saved search. Purely a personal preference with no money
+    // or trust implications, so — like a user's own profile — it's simply
+    // owner-scoped rather than needing any cross-document verification.
+    match /savedSearches/{searchId} {
+      allow read, delete: if request.auth != null && request.auth.uid == resource.data.buyerId;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.buyerId;
+      allow update: if false;
     }
 
     // A buyer's rating of a seller after a completed sale. Doc id is the

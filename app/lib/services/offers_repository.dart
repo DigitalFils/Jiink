@@ -26,9 +26,18 @@ class OffersRepository {
 
   /// Pending offers a seller has received on one of their listings, for
   /// them to accept or decline.
-  Stream<List<Offer>> pendingOffersForListing(String listingId) {
+  ///
+  /// Filtering by [sellerId] isn't just belt-and-braces — firestore.rules
+  /// can only allow a list query when every field it checks (here,
+  /// `sellerId == request.auth.uid`) is also a filter on the query itself,
+  /// so Firestore can prove the rule holds for every possible result.
+  /// Without this filter the query is provably unsafe from Firestore's
+  /// point of view and the whole request is denied, even for the listing's
+  /// actual seller.
+  Stream<List<Offer>> pendingOffersForListing(String listingId, String sellerId) {
     return _offers
         .where('listingId', isEqualTo: listingId)
+        .where('sellerId', isEqualTo: sellerId)
         .where('status', isEqualTo: OfferStatus.pending.name)
         .snapshots()
         .map((snap) => snap.docs.map(Offer.fromFirestore).toList());

@@ -114,22 +114,19 @@ class S8llApp extends StatelessWidget {
         Provider(create: (_) => SavedSearchesRepository()),
         Provider(create: (_) => TrustSafetyRepository()),
       ],
-      child: Consumer<ThemeController>(
-        builder: (context, themeController, _) {
-          return MaterialApp(
-            title: 'S8LL',
-            debugShowCheckedModeBanner: false,
-            themeMode: themeController.mode,
-            theme: buildS8llTheme(brightness: Brightness.light),
-            darkTheme: buildS8llTheme(),
-            home: const _AuthGate(),
-          );
-        },
-      ),
+      child: const _AuthGate(),
     );
   }
 }
 
+/// Decides, then builds, the whole [MaterialApp] — rather than sitting
+/// inside a fixed MaterialApp's `home:`, so that a signed-in [AppState] can
+/// wrap the MaterialApp itself. A Navigator's pushed routes (chat threads,
+/// listing detail, publish) are siblings in its Overlay, not descendants of
+/// whatever `home:` rendered; a provider placed only around `home:` is
+/// invisible to them, which is exactly the "Provider<AppState> not found"
+/// crash that hit every pushed screen reading AppState. Wrapping MaterialApp
+/// itself makes it an ancestor of the Overlay, and so of every route in it.
 class _AuthGate extends StatelessWidget {
   const _AuthGate();
 
@@ -140,16 +137,33 @@ class _AuthGate extends StatelessWidget {
       stream: authService.authStateChanges,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          return _buildApp(
+            home: const Scaffold(body: Center(child: CircularProgressIndicator())),
+          );
         }
         final user = snapshot.data;
         if (user == null) {
-          return AuthScreen(authService: authService);
+          return _buildApp(home: AuthScreen(authService: authService));
         }
         return ChangeNotifierProvider<AppState>(
           key: ValueKey(user.uid),
           create: (_) => AppState(uid: user.uid),
-          child: const _PushNotificationRegistrar(child: RootShell()),
+          child: _buildApp(home: const _PushNotificationRegistrar(child: RootShell())),
+        );
+      },
+    );
+  }
+
+  Widget _buildApp({required Widget home}) {
+    return Consumer<ThemeController>(
+      builder: (context, themeController, _) {
+        return MaterialApp(
+          title: 'S8LL',
+          debugShowCheckedModeBanner: false,
+          themeMode: themeController.mode,
+          theme: buildS8llTheme(brightness: Brightness.light),
+          darkTheme: buildS8llTheme(),
+          home: home,
         );
       },
     );

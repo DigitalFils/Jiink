@@ -1,3 +1,4 @@
+import Stripe from "stripe";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { db } from "./admin";
 import { getStripeClient, stripeSecretKey } from "./stripeClient";
@@ -30,29 +31,42 @@ export const createPayoutOnboardingLink = onCall(
 
     let accountId: string | undefined = userData.stripeAccountId;
 
-    if (!accountId) {
-      const account = await stripe.accounts.create({
-        type: "express",
-        email: request.auth?.token?.email ?? undefined,
-        capabilities: {
-          card_payments: { requested: true },
-          transfers: { requested: true },
-        },
+    try {
+      if (!accountId) {
+        const account = await stripe.accounts.create({
+          type: "express",
+          email: request.auth?.token?.email ?? undefined,
+          capabilities: {
+            card_payments: { requested: true },
+            transfers: { requested: true },
+          },
+        });
+        accountId = account.id;
+        await userRef.set(
+          { stripeAccountId: accountId, payoutsEnabled: false },
+          { merge: true }
+        );
+      }
+
+      const link = await stripe.accountLinks.create({
+        account: accountId,
+        type: "account_onboarding",
+        return_url: returnUrl,
+        refresh_url: refreshUrl,
       });
-      accountId = account.id;
-      await userRef.set(
-        { stripeAccountId: accountId, payoutsEnabled: false },
-        { merge: true }
-      );
+
+      return { url: link.url };
+    } catch (err) {
+      // Otherwise an unhandled throw here becomes an opaque
+      // "internal"/"INTERNAL" on the client with no way to tell a genuine
+      // bug apart from an unmet Stripe account prerequisite (e.g. Connect
+      // not yet enabled on the platform account) without pulling Cloud
+      // Functions logs. Stripe's own error messages are written to be
+      // shown to the account holder, so they're safe to forward as-is.
+      if (err instanceof Stripe.errors.StripeError) {
+        throw new HttpsError("failed-precondition", err.message);
+      }
+      throw err;
     }
-
-    const link = await stripe.accountLinks.create({
-      account: accountId,
-      type: "account_onboarding",
-      return_url: returnUrl,
-      refresh_url: refreshUrl,
-    });
-
-    return { url: link.url };
   }
 );

@@ -171,6 +171,13 @@ ThemeData buildS8llTheme({Brightness brightness = Brightness.dark}) {
     ),
   );
 
+  // TextButton has no explicit style below, so without this it falls back
+  // to ColorScheme.primary — the raw brand lime, which reads fine on the
+  // dark theme's near-black background but is nearly illegible ("faint")
+  // as text on the light theme's off-white one. Only light mode needs a
+  // deeper stand-in; dark mode keeps the actual brand lime.
+  final textButtonColor = isDark ? S8llColors.lime : const Color(0xFF5C7A00);
+
   final base = ThemeData(
     useMaterial3: true,
     brightness: brightness,
@@ -218,6 +225,12 @@ ThemeData buildS8llTheme({Brightness brightness = Brightness.dark}) {
         textStyle: const TextStyle(fontWeight: FontWeight.w700),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(S8llRadius.sm)),
         padding: const EdgeInsets.symmetric(vertical: 14),
+      ),
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        foregroundColor: textButtonColor,
+        textStyle: const TextStyle(fontWeight: FontWeight.w700),
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(

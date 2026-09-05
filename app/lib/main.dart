@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:provider/provider.dart';
@@ -26,12 +29,73 @@ import 'theme.dart';
 // and that one lives in Firebase Functions secrets, not here.
 const _stripePublishableKey = 'pk_test_uNWcnUhznC2cD3nys85JsCaN';
 
-Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  Stripe.publishableKey = _stripePublishableKey;
-  await Stripe.instance.applySettings();
-  runApp(const S8llApp());
+void main() {
+  // A release build (which every sideloaded APK here is) shows no visible
+  // error at all by default when something throws — no red screen, nothing
+  // in Logcat the user can reach. Route every failure, startup or later, to
+  // an on-screen message instead, so a failure in the field is diagnosable
+  // from a screenshot rather than indistinguishable from a hang.
+  runZonedGuarded(
+    () async {
+      WidgetsFlutterBinding.ensureInitialized();
+      FlutterError.onError = (details) {
+        FlutterError.presentError(details);
+        runApp(_StartupErrorApp(error: details.exception, stackTrace: details.stack ?? StackTrace.current));
+      };
+
+      try {
+        await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform)
+            .timeout(const Duration(seconds: 15), onTimeout: () => throw Exception('Firebase.initializeApp() timed out'));
+        Stripe.publishableKey = _stripePublishableKey;
+        await Stripe.instance.applySettings().timeout(
+          const Duration(seconds: 15),
+          onTimeout: () => throw Exception('Stripe.instance.applySettings() timed out'),
+        );
+      } catch (error, stackTrace) {
+        runApp(_StartupErrorApp(error: error, stackTrace: stackTrace));
+        return;
+      }
+      runApp(const S8llApp());
+    },
+    (error, stackTrace) => runApp(_StartupErrorApp(error: error, stackTrace: stackTrace)),
+  );
+}
+
+class _StartupErrorApp extends StatelessWidget {
+  const _StartupErrorApp({required this.error, required this.stackTrace});
+
+  final Object error;
+  final StackTrace stackTrace;
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        backgroundColor: Colors.black,
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'S8LL failed to start',
+                    style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
+                  Text('$error', style: const TextStyle(color: Colors.white)),
+                  const SizedBox(height: 16),
+                  Text('$stackTrace', style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class S8llApp extends StatelessWidget {

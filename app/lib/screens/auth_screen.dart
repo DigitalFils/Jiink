@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
+import '../services/demo_data.dart';
 import '../theme.dart';
 
 class AuthScreen extends StatefulWidget {
@@ -55,6 +56,22 @@ class _AuthScreenState extends State<AuthScreen> {
       }
     } on FirebaseAuthException catch (e) {
       setState(() => _error = e.message ?? 'Something went wrong.');
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  Future<void> _useDemoAccount(int index) async {
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+    try {
+      await useDemoAccount(widget.authService, index);
+    } on FirebaseAuthException catch (e) {
+      setState(() => _error = e.message ?? 'Could not sign into the demo account.');
+    } catch (e) {
+      setState(() => _error = 'Could not sign into the demo account: $e');
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -140,6 +157,33 @@ class _AuthScreenState extends State<AuthScreen> {
                     child: Text(_isSignUp
                         ? 'Already have an account? Sign in'
                         : 'New here? Create an account'),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(child: Divider(color: context.s8ll.textSecondary.withValues(alpha: 0.3))),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Text(
+                          'or try a demo account',
+                          style: TextStyle(color: context.s8ll.textSecondary, fontSize: 12),
+                        ),
+                      ),
+                      Expanded(child: Divider(color: context.s8ll.textSecondary.withValues(alpha: 0.3))),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (var i = 0; i < demoAccounts.length; i++)
+                        OutlinedButton(
+                          onPressed: _submitting ? null : () => _useDemoAccount(i),
+                          child: Text(demoAccounts[i].displayName),
+                        ),
+                    ],
                   ),
                 ],
               ),

@@ -83,10 +83,10 @@ class _AuthScreenState extends State<AuthScreen> {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
+                  Text(
                     'Snap it, sell it.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: S8llColors.grey),
+                    style: TextStyle(color: context.s8ll.textSecondary),
                   ),
                   const SizedBox(height: 32),
                   if (_isSignUp) ...[

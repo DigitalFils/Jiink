@@ -401,10 +401,10 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
             const SizedBox(height: 12),
             Row(
               children: [
-                const Icon(Icons.person_outline, size: 18, color: S8llColors.grey),
+                Icon(Icons.person_outline, size: 18, color: context.s8ll.textSecondary),
                 const SizedBox(width: 6),
                 Text('${listing.sellerName} · ${listing.sellerCity}',
-                    style: const TextStyle(color: S8llColors.grey)),
+                    style: TextStyle(color: context.s8ll.textSecondary)),
               ],
             ),
             const SizedBox(height: 4),
@@ -412,27 +412,27 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
             const SizedBox(height: 6),
             Row(
               children: [
-                const Icon(Icons.local_shipping_outlined, size: 18, color: S8llColors.grey),
+                Icon(Icons.local_shipping_outlined, size: 18, color: context.s8ll.textSecondary),
                 const SizedBox(width: 6),
-                Text(listing.delivery.label, style: const TextStyle(color: S8llColors.grey)),
+                Text(listing.delivery.label, style: TextStyle(color: context.s8ll.textSecondary)),
               ],
             ),
             if (_watcherCount > 0) ...[
               const SizedBox(height: 6),
               Row(
                 children: [
-                  const Icon(Icons.visibility_outlined, size: 18, color: S8llColors.grey),
+                  Icon(Icons.visibility_outlined, size: 18, color: context.s8ll.textSecondary),
                   const SizedBox(width: 6),
                   Text(
                     _watcherCount == 1 ? '1 person watching' : '$_watcherCount people watching',
-                    style: const TextStyle(color: S8llColors.grey),
+                    style: TextStyle(color: context.s8ll.textSecondary),
                   ),
                 ],
               ),
             ],
             const SizedBox(height: 24),
             if (isSold) ...[
-              const Text('This item has sold.', style: TextStyle(color: S8llColors.grey)),
+              Text('This item has sold.', style: TextStyle(color: context.s8ll.textSecondary)),
               if (isMine && _saleOrder != null) ...[
                 const SizedBox(height: 16),
                 Text('Shipment tracking', style: Theme.of(context).textTheme.titleMedium),
@@ -488,11 +488,11 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                     ),
                   )
                 else
-                  const Padding(
-                    padding: EdgeInsets.only(bottom: 12),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
                     child: Text(
                       "The seller hasn't added tracking yet.",
-                      style: TextStyle(color: S8llColors.grey),
+                      style: TextStyle(color: context.s8ll.textSecondary),
                     ),
                   ),
                 if (_existingReview != null)
@@ -594,7 +594,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                     ),
                   OfferStatus.pending => Text(
                       'Your offer of £${_myOffer!.offerInPounds.toStringAsFixed(0)} is pending — waiting for the seller',
-                      style: const TextStyle(color: S8llColors.grey),
+                      style: TextStyle(color: context.s8ll.textSecondary),
                     ),
                   OfferStatus.accepted => const Row(
                       children: [
@@ -603,9 +603,9 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                         Text('Offer accepted — buy now at the price above'),
                       ],
                     ),
-                  OfferStatus.declined => const Text(
+                  OfferStatus.declined => Text(
                       'Your offer was declined',
-                      style: TextStyle(color: S8llColors.grey),
+                      style: TextStyle(color: context.s8ll.textSecondary),
                     ),
                 },
               ],

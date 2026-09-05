@@ -74,7 +74,7 @@ class ListingCard extends StatelessWidget {
                   ),
                   Text(
                     '${listing.sellerName} · ${listing.delivery.label}',
-                    style: const TextStyle(color: S8llColors.grey, fontSize: 12),
+                    style: TextStyle(color: context.s8ll.textSecondary, fontSize: 12),
                   ),
                 ],
               ),
@@ -82,13 +82,13 @@ class ListingCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    const Icon(Icons.visibility_outlined, size: 14, color: S8llColors.grey),
+                    Icon(Icons.visibility_outlined, size: 14, color: context.s8ll.textSecondary),
                     const SizedBox(width: 4),
                     Text(
                       listing.watcherCount == 1
                           ? '1 watching'
                           : '${listing.watcherCount} watching',
-                      style: const TextStyle(color: S8llColors.grey, fontSize: 12),
+                      style: TextStyle(color: context.s8ll.textSecondary, fontSize: 12),
                     ),
                   ],
                 ),

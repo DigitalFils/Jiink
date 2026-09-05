@@ -23,27 +23,27 @@ class ListingPhoto extends StatelessWidget {
           fit: BoxFit.cover,
           loadingBuilder: (context, child, progress) {
             if (progress == null) return child;
-            return _placeholder(height, child: const CircularProgressIndicator());
+            return _placeholder(context, height, child: const CircularProgressIndicator());
           },
-          errorBuilder: (context, error, stack) => _placeholder(height),
+          errorBuilder: (context, error, stack) => _placeholder(context, height),
         ),
       );
     }
-    return _placeholder(height);
+    return _placeholder(context, height);
   }
 
-  Widget _placeholder(double height, {Widget? child}) {
+  Widget _placeholder(BuildContext context, double height, {Widget? child}) {
     return Container(
       height: height,
       width: double.infinity,
       decoration: BoxDecoration(
-        color: S8llColors.charcoal,
+        color: context.s8ll.surfaceHigh,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white12),
+        border: Border.all(color: context.s8ll.divider),
       ),
       child: Center(
         child: child ??
-            const Icon(Icons.shopping_bag_outlined, size: 48, color: S8llColors.grey),
+            Icon(Icons.shopping_bag_outlined, size: 48, color: context.s8ll.textSecondary),
       ),
     );
   }

@@ -17,6 +17,7 @@ import 'services/reviews_repository.dart';
 import 'services/saved_searches_repository.dart';
 import 'services/trust_safety_repository.dart';
 import 'state/app_state.dart';
+import 'state/theme_controller.dart';
 import 'theme.dart';
 
 // TODO: replace with your Stripe *publishable* (not secret) test key from
@@ -38,6 +39,7 @@ class S8llApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => ThemeController()),
         Provider(create: (_) => AuthService()),
         Provider(create: (_) => PaymentsService()),
         Provider(create: (_) => ChatRepository()),
@@ -47,11 +49,17 @@ class S8llApp extends StatelessWidget {
         Provider(create: (_) => SavedSearchesRepository()),
         Provider(create: (_) => TrustSafetyRepository()),
       ],
-      child: MaterialApp(
-        title: 'S8LL',
-        debugShowCheckedModeBanner: false,
-        theme: buildS8llTheme(),
-        home: const _AuthGate(),
+      child: Consumer<ThemeController>(
+        builder: (context, themeController, _) {
+          return MaterialApp(
+            title: 'S8LL',
+            debugShowCheckedModeBanner: false,
+            themeMode: themeController.mode,
+            theme: buildS8llTheme(brightness: Brightness.light),
+            darkTheme: buildS8llTheme(),
+            home: const _AuthGate(),
+          );
+        },
       ),
     );
   }

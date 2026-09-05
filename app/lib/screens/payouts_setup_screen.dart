@@ -62,11 +62,11 @@ class _PayoutsSetupScreenState extends State<PayoutsSetupScreen> {
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 10),
-            const Text(
+            Text(
               "You'll need this before buyers can pay for a \"Ship it\" listing "
               'in the app. Stripe handles your bank details and identity check '
               "directly — S8LL never sees them. Takes a few minutes.",
-              style: TextStyle(color: S8llColors.grey),
+              style: TextStyle(color: context.s8ll.textSecondary),
             ),
             if (_error != null) ...[
               const SizedBox(height: 16),

@@ -37,7 +37,7 @@ class _RootShellState extends State<RootShell> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: _tab,
         onDestinationSelected: (index) => setState(() => _tab = index),
-        backgroundColor: S8llColors.charcoal,
+        backgroundColor: context.s8ll.surface,
         indicatorColor: S8llColors.lime.withValues(alpha: 0.2),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.storefront_outlined), label: 'Feed'),

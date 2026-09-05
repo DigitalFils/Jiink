@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../models.dart';
 import '../services/offers_repository.dart';
@@ -339,6 +340,25 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
     }
   }
 
+  // No s8ll.com yet (SETUP.md flags this same gap for the Stripe return
+  // URLs) — sharing the listing's real details is still useful on its
+  // own, so this doesn't invent a link to a domain that isn't live.
+  void _share() {
+    final listing = widget.listing;
+    final remaining = listing.remaining(DateTime.now());
+    final timeLeft = remaining == Duration.zero
+        ? 'Sold or expired'
+        : remaining.inHours >= 1
+            ? '${remaining.inHours}h left'
+            : '${remaining.inMinutes}m left';
+    SharePlus.instance.share(
+      ShareParams(
+        text: '${listing.title} — £${listing.priceInPounds.toStringAsFixed(0)} '
+            '(${listing.sellerCity}, $timeLeft)\nOn S8LL — sells today or it\'s gone.',
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final listing = widget.listing;
@@ -352,6 +372,11 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
       appBar: AppBar(
         title: Text(listing.title),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.share_outlined),
+            tooltip: 'Share',
+            onPressed: _share,
+          ),
           if (!isMine)
             PopupMenuButton<String>(
               onSelected: (value) {

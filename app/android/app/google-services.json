@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "871773864711",
+    "project_id": "s8ll-6ab35",
+    "storage_bucket": "s8ll-6ab35.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:871773864711:android:8111a7c0b680ecfff5bba2",
+        "android_client_info": {
+          "package_name": "com.digitalfils.s8ll"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBwGP27a1KNo61d-f7j67q8FUGrPrevKhM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

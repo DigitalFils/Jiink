@@ -1,16 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../models.dart';
 import '../services/auth_service.dart';
 import '../services/payments_service.dart';
+import '../services/reviews_repository.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/listing_card.dart';
+import '../widgets/seller_rating_badge.dart';
 import 'listing_detail_screen.dart';
 import 'payouts_setup_screen.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  SellerRating? _rating;
+
+  @override
+  void initState() {
+    super.initState();
+    final uid = context.read<AppState>().uid;
+    context.read<ReviewsRepository>().sellerRating(uid).then((rating) {
+      if (mounted) setState(() => _rating = rating);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -52,6 +71,8 @@ class ProfileScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(profile?.city ?? '', style: const TextStyle(color: S8llColors.grey)),
+                      const SizedBox(height: 4),
+                      SellerRatingBadge(rating: _rating),
                     ],
                   ),
                 ),

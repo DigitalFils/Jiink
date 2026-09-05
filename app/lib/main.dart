@@ -11,6 +11,7 @@ import 'services/auth_service.dart';
 import 'services/chat_repository.dart';
 import 'services/listings_repository.dart';
 import 'services/payments_service.dart';
+import 'services/reviews_repository.dart';
 import 'state/app_state.dart';
 import 'theme.dart';
 
@@ -37,6 +38,7 @@ class S8llApp extends StatelessWidget {
         Provider(create: (_) => PaymentsService()),
         Provider(create: (_) => ChatRepository()),
         Provider(create: (_) => ListingsRepository()),
+        Provider(create: (_) => ReviewsRepository()),
       ],
       child: MaterialApp(
         title: 'S8LL',

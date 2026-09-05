@@ -90,4 +90,16 @@ void main() {
       expect(listing.isWatchedBy('someone-else'), isFalse);
     });
   });
+
+  group('SellerRating', () {
+    test('has no ratings when the review count is zero', () {
+      const rating = SellerRating(average: 0, count: 0);
+      expect(rating.hasRatings, isFalse);
+    });
+
+    test('has ratings once at least one review exists', () {
+      const rating = SellerRating(average: 4.5, count: 2);
+      expect(rating.hasRatings, isTrue);
+    });
+  });
 }

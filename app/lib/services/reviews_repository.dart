@@ -12,17 +12,50 @@ class ReviewsRepository {
       _firestore.collection('reviews');
 
   /// The order that would make [buyerId] eligible to review [listingId], if
-  /// they actually bought it. Orders only ever come from the Stripe
-  /// webhook, so finding one here is proof of a real completed purchase.
-  Future<PurchaseOrder?> orderForPurchase({required String buyerId, required String listingId}) async {
-    final query = await _firestore
+  /// they actually bought it — live, so a buyer also sees the seller's
+  /// tracking number appear without needing to re-open the screen. Orders
+  /// only ever come from the Stripe webhook, so finding one here is proof
+  /// of a real completed purchase.
+  Stream<PurchaseOrder?> orderForPurchaseStream({
+    required String buyerId,
+    required String listingId,
+  }) {
+    return _firestore
         .collection('orders')
         .where('buyerId', isEqualTo: buyerId)
         .where('listingId', isEqualTo: listingId)
         .limit(1)
-        .get();
-    if (query.docs.isEmpty) return null;
-    return PurchaseOrder.fromFirestore(query.docs.first);
+        .snapshots()
+        .map((snap) => snap.docs.isEmpty ? null : PurchaseOrder.fromFirestore(snap.docs.first));
+  }
+
+  /// The order for a listing the caller sold, if any — so a seller can add
+  /// a tracking number once it's paid for.
+  Stream<PurchaseOrder?> orderForSaleStream({
+    required String sellerId,
+    required String listingId,
+  }) {
+    return _firestore
+        .collection('orders')
+        .where('sellerId', isEqualTo: sellerId)
+        .where('listingId', isEqualTo: listingId)
+        .limit(1)
+        .snapshots()
+        .map((snap) => snap.docs.isEmpty ? null : PurchaseOrder.fromFirestore(snap.docs.first));
+  }
+
+  /// Only the seller who owns this order may call this — enforced by
+  /// firestore.rules, which also scopes the write to just these fields.
+  Future<void> setTracking({
+    required String orderId,
+    required String trackingNumber,
+    String? carrier,
+  }) {
+    return _firestore.collection('orders').doc(orderId).update({
+      'trackingNumber': trackingNumber,
+      'carrier': carrier,
+      'trackingUpdatedAt': Timestamp.now(),
+    });
   }
 
   /// Whether — and how — [buyerId] already reviewed this listing's sale.

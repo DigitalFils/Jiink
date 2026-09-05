@@ -242,10 +242,119 @@ describe("orders/{orderId}", () => {
     await assertFails(dbAs(CAROL).doc("orders/o1").get());
   });
 
-  it("blocks every client write — orders only ever come from the webhook", async () => {
-    await assertFails(dbAs(BOB).doc("orders/o1").update({ status: "refunded" }));
+  it("blocks every client create/delete — orders only ever come from the webhook", async () => {
     await assertFails(dbAs(ALICE).doc("orders/o2").set({ buyerId: BOB, sellerId: ALICE }));
     await assertFails(dbAs(BOB).doc("orders/o1").delete());
+    await assertFails(dbAs(ALICE).doc("orders/o1").delete());
+  });
+
+  it("lets the seller add a shipment tracking number", async () => {
+    await assertSucceeds(
+      dbAs(ALICE).doc("orders/o1").update({ trackingNumber: "1Z999", carrier: "UPS" })
+    );
+  });
+
+  it("blocks the buyer from writing a tracking number onto their own order", async () => {
+    await assertFails(dbAs(BOB).doc("orders/o1").update({ trackingNumber: "1Z999" }));
+  });
+
+  it("blocks a third party from writing a tracking number", async () => {
+    await assertFails(dbAs(CAROL).doc("orders/o1").update({ trackingNumber: "1Z999" }));
+  });
+
+  it("blocks the seller from sneaking in other field changes alongside tracking", async () => {
+    await assertFails(dbAs(ALICE).doc("orders/o1").update({ trackingNumber: "1Z999", status: "refunded" }));
+  });
+});
+
+describe("reports/{reportId}", () => {
+  it("lets a signed-in user file a report against a listing or a user", async () => {
+    await assertSucceeds(
+      dbAs(ALICE).collection("reports").add({
+        reporterId: ALICE,
+        targetType: "listing",
+        targetId: "l1",
+        reason: "Counterfeit item",
+      })
+    );
+    await assertSucceeds(
+      dbAs(ALICE).collection("reports").add({
+        reporterId: ALICE,
+        targetType: "user",
+        targetId: BOB,
+        reason: "Harassing messages",
+      })
+    );
+  });
+
+  it("blocks filing a report under someone else's identity", async () => {
+    await assertFails(
+      dbAs(ALICE).collection("reports").add({
+        reporterId: BOB,
+        targetType: "listing",
+        targetId: "l1",
+        reason: "Counterfeit item",
+      })
+    );
+  });
+
+  it("rejects an unrecognized targetType", async () => {
+    await assertFails(
+      dbAs(ALICE).collection("reports").add({
+        reporterId: ALICE,
+        targetType: "message",
+        targetId: "l1",
+        reason: "Spam",
+      })
+    );
+  });
+
+  it("rejects an empty reason", async () => {
+    await assertFails(
+      dbAs(ALICE).collection("reports").add({
+        reporterId: ALICE,
+        targetType: "listing",
+        targetId: "l1",
+        reason: "",
+      })
+    );
+  });
+
+  it("blocks reading reports back through the app, even your own", async () => {
+    await seed((db) =>
+      db.doc("reports/r1").set({
+        reporterId: ALICE,
+        targetType: "listing",
+        targetId: "l1",
+        reason: "Counterfeit item",
+      })
+    );
+    await assertFails(dbAs(ALICE).doc("reports/r1").get());
+  });
+});
+
+describe("savedSearches/{searchId}", () => {
+  it("lets a buyer save and read their own search", async () => {
+    const doc = dbAs(ALICE).collection("savedSearches").doc("s1");
+    await assertSucceeds(doc.set({ buyerId: ALICE, query: "trainers" }));
+    await assertSucceeds(doc.get());
+  });
+
+  it("blocks creating a saved search under someone else's buyerId", async () => {
+    await assertFails(
+      dbAs(ALICE).doc("savedSearches/s1").set({ buyerId: BOB, query: "trainers" })
+    );
+  });
+
+  it("blocks a third party from reading or deleting someone else's saved search", async () => {
+    await seed((db) => db.doc("savedSearches/s1").set({ buyerId: ALICE, query: "trainers" }));
+    await assertFails(dbAs(BOB).doc("savedSearches/s1").get());
+    await assertFails(dbAs(BOB).doc("savedSearches/s1").delete());
+  });
+
+  it("lets the owner delete their own saved search", async () => {
+    await seed((db) => db.doc("savedSearches/s1").set({ buyerId: ALICE, query: "trainers" }));
+    await assertSucceeds(dbAs(ALICE).doc("savedSearches/s1").delete());
   });
 });
 

@@ -12,13 +12,16 @@ class MessagesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final uid = context.watch<AppState>().uid;
+    final appState = context.watch<AppState>();
+    final uid = appState.uid;
+    final blocked = appState.profile?.blockedUserIds ?? const [];
     return Scaffold(
       appBar: AppBar(title: const Text('Messages')),
       body: StreamBuilder<List<ChatThreadSummary>>(
         stream: context.read<ChatRepository>().threadsFor(uid),
         builder: (context, snapshot) {
-          final threads = snapshot.data ?? const [];
+          final threads =
+              (snapshot.data ?? const []).where((t) => !blocked.contains(t.otherPartyId)).toList();
           if (threads.isEmpty) {
             return const Center(
               child: Text('No conversations yet', style: TextStyle(color: S8llColors.grey)),

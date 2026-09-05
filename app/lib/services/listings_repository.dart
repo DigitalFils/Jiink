@@ -68,6 +68,36 @@ class ListingsRepository {
     await _listings.add(listing.toCreateMap());
   }
 
+  /// Same create path as [publish], but for a listing that already has a
+  /// hosted photo URL (demo/seed data) instead of a local camera file to
+  /// upload to Storage.
+  Future<void> publishWithPhotoUrl({
+    required String sellerId,
+    required String sellerName,
+    required String sellerCity,
+    required String title,
+    required int priceCents,
+    required DeliveryMethod delivery,
+    required String photoUrl,
+    String description = '',
+    ListingCategory category = ListingCategory.other,
+  }) {
+    final listing = Listing(
+      id: '', // assigned by Firestore
+      sellerId: sellerId,
+      sellerName: sellerName,
+      sellerCity: sellerCity,
+      title: title,
+      priceCents: priceCents,
+      delivery: delivery,
+      postedAt: DateTime.now(),
+      description: description,
+      photoUrl: photoUrl,
+      category: category,
+    );
+    return _listings.add(listing.toCreateMap());
+  }
+
   /// Re-lists an item at the top of the feed by resetting its post time.
   Future<void> bump(String listingId) {
     return _listings.doc(listingId).update({

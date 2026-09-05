@@ -12,16 +12,15 @@ import 'listing_detail_screen.dart';
 
 const _maxPriceOptions = <int?>[null, 2500, 5000, 10000, 25000];
 
-/// The main feed — a full-bleed, one-listing-per-screen vertical drop feed
-/// (swipe up for the next one) rather than a scrolling list, so the photo
-/// and the live countdown always own the whole screen. Always renders dark
-/// regardless of the app's light/dark setting: a short-form feed reads as
-/// itself against black the way it doesn't against an off-white page.
+/// The main feed — a scrollable 2-column grid so multiple live listings are
+/// visible at once, rather than one full-screen card at a time. Always
+/// renders dark regardless of the app's light/dark setting: a drop feed
+/// reads as itself against black the way it doesn't against an off-white
+/// page.
 ///
 /// Search/category/price filtering and saved searches are all real and
-/// unchanged from before — just moved into a sheet behind the search icon
-/// instead of sitting permanently on screen, since a drop feed has no room
-/// for a filter bar above every card.
+/// unchanged from before — behind the search icon in the header instead of
+/// sitting permanently on screen.
 class FeedScreen extends StatefulWidget {
   const FeedScreen({super.key});
 
@@ -217,27 +216,10 @@ class _FeedScreenState extends State<FeedScreen> {
 
     return Scaffold(
       backgroundColor: S8llColors.black,
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: listings.isEmpty
-                ? _EmptyFeed(hasFilters: _hasActiveFilters)
-                : PageView.builder(
-                    scrollDirection: Axis.vertical,
-                    itemCount: listings.length,
-                    itemBuilder: (context, index) {
-                      final listing = listings[index];
-                      return _DropCard(
-                        listing: listing,
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => ListingDetailScreen(listing: listing)),
-                        ),
-                      );
-                    },
-                  ),
-          ),
-          SafeArea(
-            child: Padding(
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
               padding: const EdgeInsets.symmetric(horizontal: S8llSpacing.lg, vertical: S8llSpacing.sm),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -256,7 +238,7 @@ class _FeedScreenState extends State<FeedScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                         decoration: BoxDecoration(
-                          color: S8llColors.charcoal.withValues(alpha: 0.85),
+                          color: S8llColors.charcoal,
                           borderRadius: BorderRadius.circular(999),
                         ),
                         child: Text(
@@ -274,9 +256,7 @@ class _FeedScreenState extends State<FeedScreen> {
                         child: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: _hasActiveFilters
-                                ? S8llColors.lime
-                                : S8llColors.charcoal.withValues(alpha: 0.85),
+                            color: _hasActiveFilters ? S8llColors.lime : S8llColors.charcoal,
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
@@ -291,15 +271,46 @@ class _FeedScreenState extends State<FeedScreen> {
                 ],
               ),
             ),
-          ),
-        ],
+            Expanded(
+              child: listings.isEmpty
+                  ? _EmptyFeed(hasFilters: _hasActiveFilters)
+                  : GridView.builder(
+                      padding: const EdgeInsets.fromLTRB(
+                        S8llSpacing.lg,
+                        S8llSpacing.xs,
+                        S8llSpacing.lg,
+                        S8llSpacing.lg,
+                      ),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        mainAxisSpacing: S8llSpacing.md,
+                        crossAxisSpacing: S8llSpacing.md,
+                        childAspectRatio: 0.66,
+                      ),
+                      itemCount: listings.length,
+                      itemBuilder: (context, index) {
+                        final listing = listings[index];
+                        return _GridCard(
+                          listing: listing,
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => ListingDetailScreen(listing: listing)),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _DropCard extends StatelessWidget {
-  const _DropCard({required this.listing, required this.onTap});
+/// One card in the feed grid: bounded photo up top with a small
+/// countdown/sold badge overlaid, real price/title/seller info below on a
+/// charcoal chip background so cards read distinctly against the black page.
+class _GridCard extends StatelessWidget {
+  const _GridCard({required this.listing, required this.onTap});
 
   final Listing listing;
   final VoidCallback onTap;
@@ -308,71 +319,66 @@ class _DropCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          _FullBleedPhoto(url: listing.photoUrl),
-          DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                stops: const [0.5, 1],
-                colors: [Colors.transparent, Colors.black.withValues(alpha: 0.85)],
+      child: Container(
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: S8llColors.charcoal,
+          borderRadius: BorderRadius.circular(S8llRadius.md),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  _FullBleedPhoto(url: listing.photoUrl),
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: listing.status == ListingStatus.sold
+                        ? const _SoldBadge(compact: true)
+                        : _PulsingCountdown(listing: listing, compact: true),
+                  ),
+                ],
               ),
             ),
-          ),
-          if (listing.status == ListingStatus.sold)
-            const Positioned(
-              top: 96,
-              left: 20,
-              child: _SoldBadge(),
-            )
-          else
-            Positioned(
-              top: 96,
-              left: 20,
-              child: _PulsingCountdown(listing: listing),
-            ),
-          Positioned(
-            left: 20,
-            right: 20,
-            // RootShell's camera FAB floats centerFloat — its footprint is
-            // ~72px above the bottom nav bar (16 margin + 56 FAB height).
-            // bottom: 28 used to put this block's lower half directly
-            // behind it, invisible under an opaque button.
-            bottom: 80,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  listing.watcherCount > 0
-                      ? '${listing.sellerName} · ${listing.watcherCount} watching'
-                      : listing.sellerName,
-                  style: const TextStyle(color: Colors.white70, fontSize: 13),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '£${listing.priceInPounds.toStringAsFixed(0)}',
-                  style: const TextStyle(
-                    color: S8llColors.lime,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 44,
-                    height: 1.0,
+            Padding(
+              padding: const EdgeInsets.all(S8llSpacing.sm),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '£${listing.priceInPounds.toStringAsFixed(0)}',
+                    style: const TextStyle(
+                      color: S8llColors.lime,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 20,
+                      height: 1.0,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  listing.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600),
-                ),
-              ],
+                  const SizedBox(height: 3),
+                  Text(
+                    listing.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    listing.watcherCount > 0
+                        ? '${listing.sellerName} · ${listing.watcherCount} watching'
+                        : listing.sellerName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.white54, fontSize: 11),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -418,9 +424,10 @@ class _FullBleedPhoto extends StatelessWidget {
 /// elsewhere in the app. The pulse is decoration; the number is real —
 /// there's no per-second countdown to show, so this never claims one.
 class _PulsingCountdown extends StatefulWidget {
-  const _PulsingCountdown({required this.listing});
+  const _PulsingCountdown({required this.listing, this.compact = false});
 
   final Listing listing;
+  final bool compact;
 
   @override
   State<_PulsingCountdown> createState() => _PulsingCountdownState();
@@ -458,23 +465,28 @@ class _PulsingCountdownState extends State<_PulsingCountdown> with SingleTickerP
     return ScaleTransition(
       scale: _scale,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        padding: EdgeInsets.symmetric(
+          horizontal: widget.compact ? 8 : 14,
+          vertical: widget.compact ? 4 : 8,
+        ),
         decoration: BoxDecoration(
           color: expiring ? Colors.redAccent : S8llColors.lime,
           borderRadius: BorderRadius.circular(999),
-          boxShadow: [
-            BoxShadow(
-              color: (expiring ? Colors.redAccent : S8llColors.lime).withValues(alpha: 0.5),
-              blurRadius: 16,
-            ),
-          ],
+          boxShadow: widget.compact
+              ? null
+              : [
+                  BoxShadow(
+                    color: (expiring ? Colors.redAccent : S8llColors.lime).withValues(alpha: 0.5),
+                    blurRadius: 16,
+                  ),
+                ],
         ),
         child: Text(
           label,
           style: TextStyle(
             color: expiring ? Colors.white : S8llColors.black,
             fontWeight: FontWeight.w800,
-            fontSize: 15,
+            fontSize: widget.compact ? 11 : 15,
           ),
         ),
       ),
@@ -483,16 +495,23 @@ class _PulsingCountdownState extends State<_PulsingCountdown> with SingleTickerP
 }
 
 class _SoldBadge extends StatelessWidget {
-  const _SoldBadge();
+  const _SoldBadge({this.compact = false});
+
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 14, vertical: compact ? 4 : 8),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(999)),
-      child: const Text(
+      child: Text(
         'SOLD',
-        style: TextStyle(color: Colors.black, fontWeight: FontWeight.w800, fontSize: 15, letterSpacing: 1),
+        style: TextStyle(
+          color: Colors.black,
+          fontWeight: FontWeight.w800,
+          fontSize: compact ? 11 : 15,
+          letterSpacing: 1,
+        ),
       ),
     );
   }

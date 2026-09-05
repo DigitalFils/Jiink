@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../models.dart';
@@ -39,7 +40,7 @@ class _PublishScreenState extends State<PublishScreen> {
       _error = null;
     });
     try {
-      final pounds = double.parse(_priceController.text);
+      final pounds = double.parse(_priceController.text.trim());
       await context.read<AppState>().publishListing(
             title: _titleController.text.trim(),
             priceCents: (pounds * 100).round(),
@@ -90,9 +91,15 @@ class _PublishScreenState extends State<PublishScreen> {
                 controller: _priceController,
                 decoration: const InputDecoration(labelText: 'Price (£)'),
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                // Some keyboards (Samsung's included) insert a stray space
+                // after the decimal point under auto-punctuation, which
+                // `double.tryParse` then rejects — block anything but
+                // digits and a single '.' at the input level instead of
+                // just validating after the fact.
+                inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
                 validator: (value) {
-                  if (value == null || value.isEmpty) return 'Required';
-                  if (double.tryParse(value) == null) return 'Enter a number';
+                  if (value == null || value.trim().isEmpty) return 'Required';
+                  if (double.tryParse(value.trim()) == null) return 'Enter a number';
                   return null;
                 },
               ),

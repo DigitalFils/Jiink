@@ -63,6 +63,29 @@ endpoint**, paste that URL, and subscribe it to `account.updated` and
 `payment_intent.succeeded`. Stripe gives you a signing secret
 (`whsec_...`) — that's the `STRIPE_WEBHOOK_SECRET` from step 4.
 
+## 6. Monitoring & alerts
+
+`stripeWebhook` logs every event it processes — every log line carries
+`component: "stripeWebhook"` plus `severity` (INFO/WARNING/ERROR), which
+Cloud Logging understands natively without any extra setup. Worth alerting
+on before this takes real payments:
+
+- **`severity>=ERROR`** — something in the payment flow actually failed
+  (a Firestore write, most likely). The function returns 500 on this so
+  Stripe retries automatically, but you want to know if it's happening.
+- **The message `payment_intent.succeeded missing expected metadata`**
+  specifically — this means a bug in `checkout.ts` stopped setting
+  required metadata, not a Stripe hiccup; retries will never fix it.
+
+To get an email on either, no extra service required:
+
+1. Firebase/GCP Console → **Logging → Logs Explorer**.
+2. Query: `severity>=ERROR AND resource.labels.function_name="stripeWebhook"`
+3. **Create alert** → pick email as the notification channel → save.
+
+Cloud Logging keeps 30 days of logs by default, which is plenty at
+pop-up scale — nothing further to provision.
+
 ## What's still manual after this
 
 - `app/lib/screens/payouts_setup_screen.dart` uses placeholder

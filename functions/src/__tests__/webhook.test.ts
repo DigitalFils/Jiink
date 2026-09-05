@@ -1,4 +1,5 @@
 import { EventEmitter } from "events";
+import { logger } from "firebase-functions";
 import { FakeFirestore } from "./helpers/fakeFirestore";
 import { makeFakeStripe } from "./helpers/fakeStripe";
 
@@ -56,6 +57,10 @@ function makePaymentIntentEvent(overrides: Record<string, unknown> = {}) {
 beforeEach(() => {
   fakeDb.store.clear();
   fakeStripe.webhooks.constructEvent.mockReset();
+});
+
+afterEach(() => {
+  jest.restoreAllMocks();
 });
 
 describe("stripeWebhook", () => {
@@ -132,6 +137,7 @@ describe("stripeWebhook", () => {
   });
 
   it("acknowledges an event type it doesn't handle without side effects", async () => {
+    const infoSpy = jest.spyOn(logger, "info").mockImplementation(() => undefined);
     fakeStripe.webhooks.constructEvent.mockReturnValue({
       type: "charge.refunded",
       data: { object: {} },
@@ -145,5 +151,68 @@ describe("stripeWebhook", () => {
 
     expect(res._code).toBe(200);
     expect(fakeDb.store.size).toBe(0);
+    expect(infoSpy).toHaveBeenCalledWith(
+      "Ignoring unhandled Stripe event type",
+      expect.objectContaining({ eventType: "charge.refunded" })
+    );
+  });
+
+  it("logs loudly and acks without writing when a payment_intent.succeeded is missing metadata", async () => {
+    const errorSpy = jest.spyOn(logger, "error").mockImplementation(() => undefined);
+    fakeStripe.webhooks.constructEvent.mockReturnValue(
+      makePaymentIntentEvent({ metadata: { listingId: LISTING } }) // buyerId/sellerId missing
+    );
+
+    const res = makeRes();
+    await stripeWebhook(
+      { headers: { "stripe-signature": "ok" }, rawBody: Buffer.from("{}") } as never,
+      res as never
+    );
+
+    expect(res._code).toBe(200);
+    expect(fakeDb.store.size).toBe(0);
+    expect(errorSpy).toHaveBeenCalledWith(
+      "payment_intent.succeeded missing expected metadata",
+      expect.objectContaining({ paymentIntentId: "pi_test_1" })
+    );
+  });
+
+  it("logs a warning when account.updated references an account with no matching user", async () => {
+    const warnSpy = jest.spyOn(logger, "warn").mockImplementation(() => undefined);
+    fakeStripe.webhooks.constructEvent.mockReturnValue({
+      type: "account.updated",
+      data: { object: { id: "acct_orphan", charges_enabled: true, payouts_enabled: true } },
+    });
+
+    const res = makeRes();
+    await stripeWebhook(
+      { headers: { "stripe-signature": "ok" }, rawBody: Buffer.from("{}") } as never,
+      res as never
+    );
+
+    expect(res._code).toBe(200);
+    expect(warnSpy).toHaveBeenCalledWith(
+      "account.updated for a Stripe account with no matching user",
+      expect.objectContaining({ stripeAccountId: "acct_orphan" })
+    );
+  });
+
+  it("returns 500 and logs an error when processing throws, so Stripe retries", async () => {
+    const errorSpy = jest.spyOn(logger, "error").mockImplementation(() => undefined);
+    jest.spyOn(fakeDb, "runTransaction").mockRejectedValueOnce(new Error("Firestore is down"));
+    fakeDb.seed(`listings/${LISTING}`, { status: "live", sellerId: SELLER });
+    fakeStripe.webhooks.constructEvent.mockReturnValue(makePaymentIntentEvent());
+
+    const res = makeRes();
+    await stripeWebhook(
+      { headers: { "stripe-signature": "ok" }, rawBody: Buffer.from("{}") } as never,
+      res as never
+    );
+
+    expect(res._code).toBe(500);
+    expect(errorSpy).toHaveBeenCalledWith(
+      "Failed to process Stripe webhook event",
+      expect.objectContaining({ error: "Firestore is down" })
+    );
   });
 });

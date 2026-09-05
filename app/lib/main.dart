@@ -20,9 +20,11 @@ import 'state/app_state.dart';
 import 'state/theme_controller.dart';
 import 'theme.dart';
 
-// TODO: replace with your Stripe *publishable* (not secret) test key from
-// the Stripe Dashboard → Developers → API keys, once you have an account.
-const _stripePublishableKey = 'pk_test_REPLACE_ME';
+// Stripe test-mode publishable key for the s8ll-6ab35 project's Connect
+// integration (dashboard.stripe.com/test/apikeys). Publishable keys are
+// safe to ship in client code — only the secret key needs protecting,
+// and that one lives in Firebase Functions secrets, not here.
+const _stripePublishableKey = 'pk_test_uNWcnUhznC2cD3nys85JsCaN';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

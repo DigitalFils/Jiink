@@ -1,7 +1,7 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { db } from "./admin";
 import { getStripeClient, stripeSecretKey } from "./stripeClient";
-import { CURRENCY, applicationFeeFor } from "./constants";
+import { CURRENCY, DEFAULT_LIVE_FOR_SECONDS, applicationFeeFor } from "./constants";
 
 /**
  * Creates a PaymentIntent for a single listing, split between the seller's
@@ -32,6 +32,21 @@ export const createListingPaymentIntent = onCall(
       throw new HttpsError(
         "failed-precondition",
         "This listing is no longer available."
+      );
+    }
+    // `status` never moves to anything but `sold`, and only this webhook
+    // does that — nothing marks a listing expired when its timer runs out.
+    // So a drop that ended hours ago still reads as `live` here, and
+    // without this check we would take the buyer's money for an item the
+    // seller has already watched drop off the feed. The seller can put it
+    // back on sale whenever they like: bumping resets postedAt, which is
+    // the only thing expiry is measured from.
+    const postedAtMs = listing.postedAt?.toMillis?.();
+    const liveForSeconds = listing.liveForSeconds ?? DEFAULT_LIVE_FOR_SECONDS;
+    if (typeof postedAtMs === "number" && Date.now() >= postedAtMs + liveForSeconds * 1000) {
+      throw new HttpsError(
+        "failed-precondition",
+        "This drop has ended. Ask the seller to bump it back onto the feed."
       );
     }
     if (listing.sellerId === buyerId) {

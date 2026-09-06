@@ -85,8 +85,18 @@ class Listing {
 
   bool isExpired(DateTime now) => remaining(now) == Duration.zero;
 
-  bool get canBuyInApp =>
-      status == ListingStatus.live && delivery != DeliveryMethod.meetup;
+  /// Whether this can be paid for in the app right now.
+  ///
+  /// Takes [now] because expiry is part of the answer, and nothing stores
+  /// it: `status` only ever moves to `sold`, so a drop whose 8 hours ran
+  /// out still reads as `live`. Without the clock this returned true for
+  /// dead listings, and the buy button was live on a drop the seller had
+  /// already watched leave the feed. A seller who still wants the sale can
+  /// bump it, which resets `postedAt` and starts the window again.
+  bool canBuyInApp(DateTime now) =>
+      status == ListingStatus.live &&
+      delivery != DeliveryMethod.meetup &&
+      !isExpired(now);
 
   factory Listing.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data()!;

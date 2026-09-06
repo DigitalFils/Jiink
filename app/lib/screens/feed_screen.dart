@@ -445,7 +445,7 @@ class _CardAction extends StatelessWidget {
         color: S8llColors.grey,
       );
     }
-    if (!listing.canBuyInApp) {
+    if (!listing.canBuyInApp(DateTime.now())) {
       return const _CardActionLabel(
         label: 'Meet up',
         icon: Icons.place_outlined,

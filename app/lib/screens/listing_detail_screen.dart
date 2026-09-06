@@ -735,7 +735,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                   ),
               ],
             ] else ...[
-              if (listing.canBuyInApp)
+              if (listing.canBuyInApp(DateTime.now()))
                 ElevatedButton(
                   onPressed: _buying ? null : _buyNow,
                   child: Text(
@@ -746,7 +746,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                             : 'Buy now',
                   ),
                 ),
-              if (listing.canBuyInApp) ...[
+              if (listing.canBuyInApp(DateTime.now())) ...[
                 const SizedBox(height: 10),
                 switch (_myOffer?.status) {
                   null => OutlinedButton(

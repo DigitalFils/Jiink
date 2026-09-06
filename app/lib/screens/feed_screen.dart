@@ -8,19 +8,22 @@ import '../services/listing_filter.dart';
 import '../services/saved_searches_repository.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
+import '../widgets/bottom_nav_bar.dart';
+import '../widgets/drop_card.dart';
+import '../widgets/logo.dart';
 import 'listing_detail_screen.dart';
 
 const _maxPriceOptions = <int?>[null, 2500, 5000, 10000, 25000];
 
-/// The main feed — a scrollable 2-column grid so multiple live listings are
-/// visible at once, rather than one full-screen card at a time. Always
-/// renders dark regardless of the app's light/dark setting: a drop feed
-/// reads as itself against black the way it doesn't against an off-white
-/// page.
+/// Home: everything that's live right now, soonest to end first.
 ///
-/// Search/category/price filtering and saved searches are all real and
-/// unchanged from before — behind the search icon in the header instead of
-/// sitting permanently on screen.
+/// Ordering is the whole argument for this screen. A drop feed sorted
+/// newest-first buries the thing with twenty minutes left under the thing
+/// posted five minutes ago with eight hours to run. Sorted by what's about
+/// to go, the top of the feed is always the part you'd regret missing.
+///
+/// Always dark regardless of the app's light/dark setting — the feed reads
+/// as itself against black in a way it doesn't against an off-white page.
 class FeedScreen extends StatefulWidget {
   const FeedScreen({super.key});
 
@@ -36,9 +39,20 @@ class _FeedScreenState extends State<FeedScreen> {
   List<SavedSearch> _savedSearches = [];
   StreamSubscription<List<SavedSearch>>? _savedSearchesSub;
 
+  /// One clock for the whole grid. Every countdown pill reads from this, so
+  /// the feed ticks in step off a single timer rather than each card
+  /// running its own.
+  late DateTime _now;
+  Timer? _ticker;
+
   @override
   void initState() {
     super.initState();
+    _now = DateTime.now();
+    _ticker = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => setState(() => _now = DateTime.now()),
+    );
     final uid = context.read<AppState>().uid;
     _savedSearchesSub =
         context.read<SavedSearchesRepository>().savedSearchesFor(uid).listen((searches) {
@@ -48,6 +62,7 @@ class _FeedScreenState extends State<FeedScreen> {
 
   @override
   void dispose() {
+    _ticker?.cancel();
     _savedSearchesSub?.cancel();
     _searchController.dispose();
     super.dispose();
@@ -90,7 +105,7 @@ class _FeedScreenState extends State<FeedScreen> {
       backgroundColor: S8llColors.charcoal,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(S8llRadius.md)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(S8llRadius.lg)),
       ),
       builder: (sheetContext) {
         return StatefulBuilder(
@@ -111,7 +126,14 @@ class _FeedScreenState extends State<FeedScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Search & filter', style: Theme.of(sheetContext).textTheme.titleLarge),
+                  const Text(
+                    'Search & filter',
+                    style: TextStyle(
+                      color: S8llColors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                   const SizedBox(height: S8llSpacing.lg),
                   TextField(
                     controller: _searchController,
@@ -206,14 +228,22 @@ class _FeedScreenState extends State<FeedScreen> {
     final appState = context.watch<AppState>();
     final uid = appState.uid;
     final blocked = appState.profile?.blockedUserIds ?? const [];
-    // Expiry first, then blocking, then the user's own search/category/price
-    // choices — so the "N live now" pill counts what's genuinely still live
-    // rather than every listing ever posted.
-    final visible = stillLive(appState.listings, now: DateTime.now())
+
+    // Expiry first, then blocking, then the user's own search/category/
+    // price choices — so the "N live now" count means what it says rather
+    // than counting every listing ever posted.
+    final onFeed = stillLive(appState.listings, now: _now)
         .where((l) => !blocked.contains(l.sellerId))
-        .toList();
+        .toList()
+      ..sort((a, b) => a.expiresAt.compareTo(b.expiresAt));
+
+    // Sold items stay on the feed — a card marked SOLD is proof the place
+    // works — but they are not what "N live now" is counting. Nothing about
+    // them is live any more.
+    final liveCount = onFeed.where((l) => l.status != ListingStatus.sold).length;
+
     final listings = filterListings(
-      visible,
+      onFeed,
       query: _searchController.text,
       category: _category,
       maxPriceCents: _maxPriceCents,
@@ -222,86 +252,17 @@ class _FeedScreenState extends State<FeedScreen> {
     return Scaffold(
       backgroundColor: S8llColors.black,
       body: SafeArea(
+        bottom: false,
         child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: S8llSpacing.lg, vertical: S8llSpacing.sm),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'S8LL',
-                    style: TextStyle(
-                      color: S8llColors.lime,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 24,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: S8llColors.charcoal,
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Text(
-                          '${visible.length} live now',
-                          style: const TextStyle(
-                            color: S8llColors.white,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: S8llSpacing.sm),
-                      GestureDetector(
-                        onTap: () => _openFilters(uid),
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: _hasActiveFilters ? S8llColors.lime : S8llColors.charcoal,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.search,
-                            size: 18,
-                            color: _hasActiveFilters ? S8llColors.black : S8llColors.white,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+            _Header(
+              liveCount: liveCount,
+              filtersActive: _hasActiveFilters,
+              onSearch: () => _openFilters(uid),
             ),
-            // Categories sit on the feed itself rather than only inside the
-            // filter sheet: browsing by category is the one filter people
-            // reach for constantly, and burying it behind an icon meant the
-            // feed looked like an undifferentiated wall. Writes the same
-            // `_category` the sheet does, so the two stay in step.
-            SizedBox(
-              height: 36,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: S8llSpacing.lg),
-                children: [
-                  _CategoryChip(
-                    label: 'All',
-                    selected: _category == null,
-                    onTap: () => setState(() => _category = null),
-                  ),
-                  for (final category in ListingCategory.values)
-                    _CategoryChip(
-                      label: category.label,
-                      selected: _category == category,
-                      onTap: () => setState(
-                        () => _category = _category == category ? null : category,
-                      ),
-                    ),
-                ],
-              ),
+            _CategoryStrip(
+              selected: _category,
+              onSelect: (category) => setState(() => _category = category),
             ),
             Expanded(
               child: listings.isEmpty
@@ -309,27 +270,36 @@ class _FeedScreenState extends State<FeedScreen> {
                   : GridView.builder(
                       padding: const EdgeInsets.fromLTRB(
                         S8llSpacing.lg,
-                        S8llSpacing.xs,
+                        S8llSpacing.sm,
                         S8llSpacing.lg,
-                        S8llSpacing.lg,
+                        // The nav bar floats over the page, so the last row
+                        // needs to clear it — without this the bottom card
+                        // sits permanently underneath the lime button.
+                        S8llBottomNavBar.clearance,
                       ),
                       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 2,
                         mainAxisSpacing: S8llSpacing.md,
                         crossAxisSpacing: S8llSpacing.md,
-                        // Taller than the text block strictly needs: the
-                        // action row added ~40px, and the photo is what
-                        // sells the item, so the card grows rather than
-                        // letting Expanded eat into the image.
-                        childAspectRatio: 0.60,
+                        // Sized for what the card actually holds: 14px of
+                        // padding top and bottom, a title that may run to
+                        // two lines, the 32px price and the meta row —
+                        // about 133px — on top of a photo that wants to be
+                        // roughly square at this column width. Too tight
+                        // and the photo has to give up more than it has,
+                        // which is what used to clip the price in half.
+                        childAspectRatio: 0.58,
                       ),
                       itemCount: listings.length,
                       itemBuilder: (context, index) {
                         final listing = listings[index];
-                        return _GridCard(
+                        return DropCard(
                           listing: listing,
+                          now: _now,
                           onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => ListingDetailScreen(listing: listing)),
+                            MaterialPageRoute(
+                              builder: (_) => ListingDetailScreen(listing: listing),
+                            ),
                           ),
                         );
                       },
@@ -342,178 +312,122 @@ class _FeedScreenState extends State<FeedScreen> {
   }
 }
 
-/// One card in the feed grid: bounded photo up top with a small
-/// countdown/sold badge overlaid, real price/title/seller info below on a
-/// charcoal chip background so cards read distinctly against the black page.
-class _GridCard extends StatelessWidget {
-  const _GridCard({required this.listing, required this.onTap});
+/// Wordmark, the live count, and the way into search. The count is the
+/// real number of listings still inside their window — it moves on its own
+/// as drops end, which is the point of putting it up here.
+class _Header extends StatelessWidget {
+  const _Header({
+    required this.liveCount,
+    required this.filtersActive,
+    required this.onSearch,
+  });
 
-  final Listing listing;
-  final VoidCallback onTap;
+  final int liveCount;
+  final bool filtersActive;
+  final VoidCallback onSearch;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          color: S8llColors.charcoal,
-          borderRadius: BorderRadius.circular(S8llRadius.md),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  _ListingPhoto(url: listing.photoUrl),
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: listing.status == ListingStatus.sold
-                        ? const _SoldBadge(compact: true)
-                        : _PulsingCountdown(listing: listing, compact: true),
-                  ),
-                ],
-              ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 12, 8),
+      // Everything here is Flexible + scaleDown. At the default text size
+      // the wordmark and the pill both sit at their natural width, but a
+      // phone set to a large accessibility font size (or a five-figure live
+      // count) used to push the search button clean off the right edge.
+      // Now the type gives way instead.
+      child: Row(
+        children: [
+          const Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: S8llLogo(size: 52),
             ),
-            Padding(
-              padding: const EdgeInsets.all(S8llSpacing.sm),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    '£${listing.priceInPounds.toStringAsFixed(0)}',
-                    style: const TextStyle(
-                      color: S8llColors.lime,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 20,
-                      height: 1.0,
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Flexible(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: S8llColors.charcoal,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Row(
+                        children: [
+                          const Icon(Icons.circle, color: S8llColors.live, size: 8),
+                          const SizedBox(width: 6),
+                          Text(
+                            '$liveCount live now',
+                            maxLines: 1,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: S8llColors.white,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 3),
-                  Text(
-                    listing.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+                IconButton(
+                  onPressed: onSearch,
+                  tooltip: 'Search and filter',
+                  icon: Icon(
+                    filtersActive ? Icons.filter_alt : Icons.search,
+                    color: filtersActive ? S8llColors.lime : S8llColors.grey,
+                    size: 28,
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    listing.watcherCount > 0
-                        ? '${listing.sellerName} · ${listing.watcherCount} watching'
-                        : listing.sellerName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.white54, fontSize: 11),
-                  ),
-                  const SizedBox(height: S8llSpacing.sm),
-                  _CardAction(listing: listing, onTap: onTap),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
-/// The one action a card can honestly offer, straight off the listing.
-///
-/// [Listing.canBuyInApp] gates *both* buttons on the detail screen — a
-/// meetup-only listing has no Buy and no Make-an-offer there, only Watch
-/// and chat. So a card for one must not show a button implying otherwise;
-/// it says how the sale happens instead. Buying and offering stay on the
-/// detail screen where the Stripe flow and the offer dialog already live —
-/// this only carries you there, the way a shop-front price tag does.
-class _CardAction extends StatelessWidget {
-  const _CardAction({required this.listing, required this.onTap});
+/// Categories on the feed itself rather than only inside the filter sheet —
+/// it's the one filter people reach for constantly, and burying it behind
+/// an icon made the feed look like an undifferentiated wall.
+class _CategoryStrip extends StatelessWidget {
+  const _CategoryStrip({required this.selected, required this.onSelect});
 
-  final Listing listing;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    if (listing.status == ListingStatus.sold) {
-      return const _CardActionLabel(
-        label: 'Sold',
-        icon: Icons.check_circle_outline,
-        color: S8llColors.grey,
-      );
-    }
-    if (!listing.canBuyInApp(DateTime.now())) {
-      return const _CardActionLabel(
-        label: 'Meet up',
-        icon: Icons.place_outlined,
-        color: S8llColors.grey,
-      );
-    }
-    return SizedBox(
-      height: 32,
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: onTap,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: S8llColors.lime,
-          foregroundColor: S8llColors.black,
-          padding: EdgeInsets.zero,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(S8llRadius.pill),
-          ),
-        ),
-        // The row is a fixed height so cards stay aligned; scaleDown keeps
-        // the label inside it at large system text sizes rather than
-        // overflowing the button.
-        child: const FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Text(
-            'Buy now',
-            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// The non-button half of [_CardAction] — same footprint so cards in a row
-/// stay aligned whether or not there's something to tap.
-class _CardActionLabel extends StatelessWidget {
-  const _CardActionLabel({required this.label, required this.icon, required this.color});
-
-  final String label;
-  final IconData icon;
-  final Color color;
+  final ListingCategory? selected;
+  final ValueChanged<ListingCategory?> onSelect;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 32,
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
-        alignment: Alignment.centerLeft,
-        child: Row(
-          children: [
-            Icon(icon, size: 14, color: color),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600),
+      height: 38,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: S8llSpacing.lg),
+        children: [
+          _CategoryChip(
+            label: 'All',
+            selected: selected == null,
+            onTap: () => onSelect(null),
+          ),
+          for (final category in ListingCategory.values)
+            _CategoryChip(
+              label: category.label,
+              selected: selected == category,
+              onTap: () => onSelect(selected == category ? null : category),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }
 }
 
-/// A category pill on the feed itself. Lighter than the Material [FilterChip]
-/// used inside the filter sheet — a row of these sits under the header all
-/// the time, so it has to read as navigation, not as a form control.
 class _CategoryChip extends StatelessWidget {
   const _CategoryChip({required this.label, required this.selected, required this.onTap});
 
@@ -524,12 +438,13 @@ class _CategoryChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(right: S8llSpacing.xs),
+      padding: const EdgeInsets.only(right: S8llSpacing.sm),
       child: GestureDetector(
         onTap: onTap,
+        behavior: HitTestBehavior.opaque,
         child: Container(
           alignment: Alignment.center,
-          padding: const EdgeInsets.symmetric(horizontal: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
             color: selected ? S8llColors.lime : S8llColors.charcoal,
             borderRadius: BorderRadius.circular(S8llRadius.pill),
@@ -537,144 +452,11 @@ class _CategoryChip extends StatelessWidget {
           child: Text(
             label,
             style: TextStyle(
-              color: selected ? S8llColors.black : S8llColors.white,
+              color: selected ? S8llColors.black : S8llColors.grey,
               fontSize: 13,
-              fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+              fontWeight: FontWeight.w700,
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ListingPhoto extends StatelessWidget {
-  const _ListingPhoto({required this.url});
-
-  final String? url;
-
-  @override
-  Widget build(BuildContext context) {
-    if (url == null || url!.isEmpty) {
-      return const ColoredBox(
-        color: S8llColors.charcoal,
-        child: Center(
-          child: Icon(Icons.shopping_bag_outlined, size: 64, color: S8llColors.greyLow),
-        ),
-      );
-    }
-    return Image.network(
-      url!,
-      fit: BoxFit.cover,
-      loadingBuilder: (context, child, progress) {
-        if (progress == null) return child;
-        return const ColoredBox(
-          color: S8llColors.charcoal,
-          child: Center(child: CircularProgressIndicator(color: S8llColors.lime)),
-        );
-      },
-      errorBuilder: (context, error, stack) => const ColoredBox(
-        color: S8llColors.charcoal,
-        child: Center(
-          child: Icon(Icons.broken_image_outlined, size: 64, color: S8llColors.greyLow),
-        ),
-      ),
-    );
-  }
-}
-
-/// A pulsing pill showing the listing's real time-remaining ("2h left",
-/// "45m left" — turning red under 30 minutes), same text as [CountdownBadge]
-/// elsewhere in the app. The pulse is decoration; the number is real —
-/// there's no per-second countdown to show, so this never claims one.
-class _PulsingCountdown extends StatefulWidget {
-  const _PulsingCountdown({required this.listing, this.compact = false});
-
-  final Listing listing;
-  final bool compact;
-
-  @override
-  State<_PulsingCountdown> createState() => _PulsingCountdownState();
-}
-
-class _PulsingCountdownState extends State<_PulsingCountdown> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-  late final Animation<double> _scale;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 900))
-      ..repeat(reverse: true);
-    _scale = Tween<double>(begin: 1, end: 1.08).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final remaining = widget.listing.remaining(DateTime.now());
-    final expiring = remaining.inMinutes <= 30 && remaining > Duration.zero;
-    final label = remaining == Duration.zero
-        ? 'Expired'
-        : remaining.inHours >= 1
-            ? '${remaining.inHours}h left'
-            : '${remaining.inMinutes}m left';
-    return ScaleTransition(
-      scale: _scale,
-      child: Container(
-        padding: EdgeInsets.symmetric(
-          horizontal: widget.compact ? 8 : 14,
-          vertical: widget.compact ? 4 : 8,
-        ),
-        decoration: BoxDecoration(
-          color: expiring ? Colors.redAccent : S8llColors.lime,
-          borderRadius: BorderRadius.circular(999),
-          boxShadow: widget.compact
-              ? null
-              : [
-                  BoxShadow(
-                    color: (expiring ? Colors.redAccent : S8llColors.lime).withValues(alpha: 0.5),
-                    blurRadius: 16,
-                  ),
-                ],
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: expiring ? Colors.white : S8llColors.black,
-            fontWeight: FontWeight.w800,
-            fontSize: widget.compact ? 11 : 15,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SoldBadge extends StatelessWidget {
-  const _SoldBadge({this.compact = false});
-
-  final bool compact;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 14, vertical: compact ? 4 : 8),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(999)),
-      child: Text(
-        'SOLD',
-        style: TextStyle(
-          color: Colors.black,
-          fontWeight: FontWeight.w800,
-          fontSize: compact ? 11 : 15,
-          letterSpacing: 1,
         ),
       ),
     );
@@ -694,17 +476,27 @@ class _EmptyFeed extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Icon(
+              hasFilters ? Icons.search_off_rounded : Icons.local_fire_department_outlined,
+              size: 48,
+              color: S8llColors.greyLow,
+            ),
+            const SizedBox(height: S8llSpacing.md),
             Text(
               hasFilters ? 'Nothing matches right now' : 'Nothing dropping yet',
-              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
+              style: const TextStyle(
+                color: S8llColors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: S8llSpacing.sm),
             Text(
               hasFilters
                   ? 'Try clearing a filter or searching something else.'
-                  : 'Tap the camera below to be the first to list.',
-              style: const TextStyle(color: Colors.white54, fontSize: 13),
+                  : 'Tap the lime button to be the first to list.',
+              style: const TextStyle(color: S8llColors.grey, fontSize: 13),
               textAlign: TextAlign.center,
             ),
           ],

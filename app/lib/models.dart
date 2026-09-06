@@ -135,6 +135,20 @@ class Listing {
       };
 }
 
+/// How much time is left, in the words the app uses everywhere.
+///
+/// This existed four times over — on the feed card, the drops row, the
+/// countdown badge and the listing page — and the copies had drifted: three
+/// of them rounded to minutes, so the final sixty seconds of a drop, the
+/// part that matters most, all read "0m left" while the fourth counted down
+/// properly beside it. One function, one answer.
+String remainingLabel(Duration remaining) {
+  if (remaining <= Duration.zero) return 'Ended';
+  if (remaining.inHours >= 1) return '${remaining.inHours}h left';
+  if (remaining.inMinutes >= 1) return '${remaining.inMinutes}m left';
+  return '${remaining.inSeconds}s left';
+}
+
 class ChatMessage {
   const ChatMessage({
     required this.id,

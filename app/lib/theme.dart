@@ -10,28 +10,40 @@ import 'package:flutter/material.dart';
 /// that *does* need to flip (surfaces, body text) lives in [S8llTint]
 /// instead, reached via `context.s8ll` rather than a static constant.
 class S8llColors {
-  // Brand
-  static const lime = Color(0xFFD4FF3F);
-  static const limeDim = Color(0xFFA8CC32); // pressed/disabled lime states
-  static const limeSoft = Color(0x33D4FF3F); // 20% lime, for tints/indicators
+  // Brand. These are the design's values, not approximations of it — the
+  // whole app reads from here, so the feed, the detail page, the chat
+  // bubbles and the nav are the same lime rather than four near-misses.
+  static const lime = Color(0xFFC1FF3D);
+  static const limeDim = Color(0xFF9BDB2E); // pressed/disabled lime states
+  static const limeSoft = Color(0x33C1FF3D); // 20% lime, for tints/indicators
 
   // The dark theme's surfaces, darkest to lightest — three tiers of
   // elevation instead of one flat "charcoal" for every card, sheet, and
   // input alike. (Light-theme equivalents live in S8llTint.light.)
   static const black = Color(0xFF0A0A0A);
-  static const charcoal = Color(0xFF1A1A1A);
-  static const charcoalHigh = Color(0xFF242424);
+  static const charcoal = Color(0xFF1A1A1E);
+  static const charcoalHigh = Color(0xFF25252A);
+
+  /// Cards sit *below* the page in this design, not above it — a hair
+  /// darker than [charcoal], which is what gives the feed its floating,
+  /// cut-out look instead of the usual raised-card one.
+  static const card = Color(0xFF141418);
 
   // Text/icon on dark surfaces.
   static const white = Color(0xFFFFFFFF);
-  static const grey = Color(0xFF8A8A8A);
-  static const greyLow = Color(0xFF5C5C5C);
-  static const divider = Color(0xFF2E2E2E);
+  static const grey = Color(0xFF9E9EA7);
+  static const greyLow = Color(0xFF6B6B74);
+  static const divider = Color(0xFF2A2A30);
 
   // Semantic — never reuse lime for these; lime means "brand/positive/go".
   // Same in both themes: an error is an error regardless of brightness.
-  static const error = Color(0xFFFF5C5C);
+  static const error = Color(0xFFFF4444);
   static const warning = Color(0xFFFFB020);
+
+  /// The "live right now" red — the dot on the live-count pill and the
+  /// LIVE flag on a drop. Deliberately not [error]: one means urgency,
+  /// the other means something went wrong.
+  static const live = Color(0xFFFF3B30);
 }
 
 /// The roles that DO flip between light and dark — page background, card

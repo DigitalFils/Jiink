@@ -77,9 +77,8 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
         });
       });
     } else if (isSold && isMine) {
-      _saleOrderSub = reviews
-          .orderForSaleStream(sellerId: uid, listingId: widget.listing.id)
-          .listen((order) {
+      _saleOrderSub =
+          reviews.orderForSaleStream(sellerId: uid, listingId: widget.listing.id).listen((order) {
         if (mounted) setState(() => _saleOrder = order);
       });
     }
@@ -295,8 +294,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Could not update: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not update: $e')));
       }
     }
   }
@@ -380,12 +378,6 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
   /// Same wording as [CountdownBadge] uses, at the larger size the page
   /// header wants. Real remaining time — there's no per-second tick behind
   /// it, so it never pretends to be a live clock.
-  String _remainingLabel(Duration remaining) {
-    if (remaining == Duration.zero) return 'Expired';
-    if (remaining.inHours >= 1) return '${remaining.inHours}h left';
-    return '${remaining.inMinutes}m left';
-  }
-
   void _share() {
     final listing = widget.listing;
     final remaining = listing.remaining(DateTime.now());
@@ -490,7 +482,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                   const Icon(Icons.schedule, color: S8llColors.lime, size: 20),
                   const SizedBox(width: 6),
                   Text(
-                    _remainingLabel(listing.remaining(DateTime.now())),
+                    remainingLabel(listing.remaining(DateTime.now())),
                     style: const TextStyle(
                       color: S8llColors.lime,
                       fontSize: 18,
@@ -734,64 +726,72 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                     ),
                   ),
               ],
-            ] else ...[
-              if (listing.canBuyInApp(DateTime.now()))
-                ElevatedButton(
-                  onPressed: _buying ? null : _buyNow,
-                  child: Text(
-                    _buying
-                        ? 'Processing…'
-                        : _myOffer?.status == OfferStatus.accepted
-                            ? 'Buy now at £${_myOffer!.offerInPounds.toStringAsFixed(0)}'
-                            : 'Buy now',
+            ] else
+              // Full-width actions. The page column aligns to the start, so
+              // every button shrink-wrapped to its label — "Buy now", the
+              // most important control on the screen, came out the width of
+              // the words.
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (listing.canBuyInApp(DateTime.now()))
+                    ElevatedButton(
+                      onPressed: _buying ? null : _buyNow,
+                      child: Text(
+                        _buying
+                            ? 'Processing…'
+                            : _myOffer?.status == OfferStatus.accepted
+                                ? 'Buy now at £${_myOffer!.offerInPounds.toStringAsFixed(0)}'
+                                : 'Buy now',
+                      ),
+                    ),
+                  if (listing.canBuyInApp(DateTime.now())) ...[
+                    const SizedBox(height: 10),
+                    switch (_myOffer?.status) {
+                      null => OutlinedButton(
+                          onPressed: _showMakeOfferDialog,
+                          child: const Text('Make an offer'),
+                        ),
+                      OfferStatus.pending => Text(
+                          'Your offer of £${_myOffer!.offerInPounds.toStringAsFixed(0)} is pending — waiting for the seller',
+                          style: TextStyle(color: context.s8ll.textSecondary),
+                        ),
+                      OfferStatus.accepted => const Row(
+                          children: [
+                            Icon(Icons.check_circle, color: S8llColors.lime, size: 18),
+                            SizedBox(width: 6),
+                            Text('Offer accepted — buy now at the price above'),
+                          ],
+                        ),
+                      OfferStatus.declined => Text(
+                          'Your offer was declined',
+                          style: TextStyle(color: context.s8ll.textSecondary),
+                        ),
+                    },
+                  ],
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    onPressed: _toggleWatch,
+                    icon: Icon(_watching ? Icons.visibility : Icons.visibility_outlined),
+                    label: Text(_watching ? 'Watching' : 'Watch'),
+                    style: _watching
+                        ? OutlinedButton.styleFrom(
+                            foregroundColor: S8llColors.lime,
+                            side: const BorderSide(color: S8llColors.lime),
+                          )
+                        : null,
                   ),
-                ),
-              if (listing.canBuyInApp(DateTime.now())) ...[
-                const SizedBox(height: 10),
-                switch (_myOffer?.status) {
-                  null => OutlinedButton(
-                      onPressed: _showMakeOfferDialog,
-                      child: const Text('Make an offer'),
+                  const SizedBox(height: 10),
+                  OutlinedButton(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => ChatScreen(listingId: listing.id, buyerId: uid),
+                      ),
                     ),
-                  OfferStatus.pending => Text(
-                      'Your offer of £${_myOffer!.offerInPounds.toStringAsFixed(0)} is pending — waiting for the seller',
-                      style: TextStyle(color: context.s8ll.textSecondary),
-                    ),
-                  OfferStatus.accepted => const Row(
-                      children: [
-                        Icon(Icons.check_circle, color: S8llColors.lime, size: 18),
-                        SizedBox(width: 6),
-                        Text('Offer accepted — buy now at the price above'),
-                      ],
-                    ),
-                  OfferStatus.declined => Text(
-                      'Your offer was declined',
-                      style: TextStyle(color: context.s8ll.textSecondary),
-                    ),
-                },
-              ],
-              const SizedBox(height: 10),
-              OutlinedButton.icon(
-                onPressed: _toggleWatch,
-                icon: Icon(_watching ? Icons.visibility : Icons.visibility_outlined),
-                label: Text(_watching ? 'Watching' : 'Watch'),
-                style: _watching
-                    ? OutlinedButton.styleFrom(
-                        foregroundColor: S8llColors.lime,
-                        side: const BorderSide(color: S8llColors.lime),
-                      )
-                    : null,
-              ),
-              const SizedBox(height: 10),
-              OutlinedButton(
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => ChatScreen(listingId: listing.id, buyerId: uid),
+                    child: const Text('Message seller'),
                   ),
-                ),
-                child: const Text('Message seller'),
+                ],
               ),
-            ],
           ],
         ),
       ),
@@ -836,7 +836,6 @@ class _DetailChip extends StatelessWidget {
 
 class _SoldBadge extends StatelessWidget {
   const _SoldBadge();
-
 
   @override
   Widget build(BuildContext context) {

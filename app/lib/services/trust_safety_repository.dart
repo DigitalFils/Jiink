@@ -6,10 +6,15 @@ import '../models.dart';
 /// a moderation queue, not something the reporter (or the person reported)
 /// can read back through the app.
 class TrustSafetyRepository {
-  TrustSafetyRepository({FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+  TrustSafetyRepository({FirebaseFirestore? firestore}) : _injectedFirestore = firestore;
 
-  final FirebaseFirestore _firestore;
+  final FirebaseFirestore? _injectedFirestore;
+
+  /// Resolved lazily rather than in the constructor so this class can be
+  /// subclassed and stubbed for the design harness (lib/dev_preview.dart),
+  /// which has no Firebase: constructing the repository must not be the
+  /// thing that reaches for FirebaseFirestore.instance, only *using* it.
+  FirebaseFirestore get _firestore => _injectedFirestore ?? FirebaseFirestore.instance;
 
   Future<void> report({
     required String reporterId,

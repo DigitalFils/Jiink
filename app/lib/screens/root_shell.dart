@@ -1,11 +1,21 @@
 import 'package:flutter/material.dart';
 
 import '../theme.dart';
+import '../widgets/bottom_nav_bar.dart';
 import 'capture_screen.dart';
+import 'drops_screen.dart';
 import 'feed_screen.dart';
 import 'messages_screen.dart';
 import 'profile_screen.dart';
 
+/// The signed-in app: four tabs behind a floating nav bar, with selling
+/// hanging off the middle button as a pushed route rather than a fifth tab.
+///
+/// The bar floats *over* the content (that's what the lime button's
+/// overhang needs), so the body runs full-bleed to the bottom of the screen
+/// and each tab reserves [S8llBottomNavBar.clearance] at the end of its own
+/// scroll. An IndexedStack keeps scroll position and Firestore listeners
+/// alive across tab switches — coming back to the feed shouldn't reload it.
 class RootShell extends StatefulWidget {
   const RootShell({super.key});
 
@@ -14,35 +24,41 @@ class RootShell extends StatefulWidget {
 }
 
 class _RootShellState extends State<RootShell> {
-  int _tab = 0;
+  S8llTab _tab = S8llTab.home;
 
-  static const _screens = [FeedScreen(), MessagesScreen(), ProfileScreen()];
+  static const _screens = [
+    FeedScreen(),
+    DropsScreen(),
+    MessagesScreen(),
+    ProfileScreen(),
+  ];
 
-  void _openCamera() {
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CaptureScreen()));
+  void _publish() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const CaptureScreen()),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(index: _tab, children: _screens),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _openCamera,
-        backgroundColor: S8llColors.lime,
-        foregroundColor: S8llColors.black,
-        shape: const CircleBorder(),
-        child: const Icon(Icons.camera_alt, size: 28),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _tab,
-        onDestinationSelected: (index) => setState(() => _tab = index),
-        backgroundColor: context.s8ll.surface,
-        indicatorColor: S8llColors.lime.withValues(alpha: 0.2),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.storefront_outlined), label: 'Feed'),
-          NavigationDestination(icon: Icon(Icons.chat_bubble_outline), label: 'Messages'),
-          NavigationDestination(icon: Icon(Icons.person_outline), label: 'Profile'),
+      backgroundColor: S8llColors.black,
+      // extendBody so the page paints behind the floating bar instead of
+      // stopping short of it and leaving a dead strip.
+      extendBody: true,
+      body: Stack(
+        children: [
+          IndexedStack(index: _tab.index, children: _screens),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: S8llBottomNavBar(
+              current: _tab,
+              onSelect: (tab) => setState(() => _tab = tab),
+              onPublish: _publish,
+            ),
+          ),
         ],
       ),
     );

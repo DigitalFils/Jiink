@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../models.dart';
 import '../services/auth_service.dart';
 import '../services/payments_service.dart';
+import '../services/listing_filter.dart';
 import '../services/reviews_repository.dart';
 import '../state/app_state.dart';
 import '../state/theme_controller.dart';
@@ -58,8 +59,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
               children: [
                 CircleAvatar(
                   radius: 32,
-                  backgroundColor: context.s8ll.surfaceHigh,
-                  child: const Icon(Icons.person, color: S8llColors.lime, size: 32),
+                  backgroundColor: S8llColors.limeSoft,
+                  child: Text(
+                    (profile?.displayName ?? '?').isEmpty
+                        ? '?'
+                        : (profile?.displayName ?? '?')[0].toUpperCase(),
+                    style: const TextStyle(
+                      color: S8llColors.lime,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 26,
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -68,7 +78,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     children: [
                       Text(
                         profile?.displayName ?? '…',
-                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
                       ),
                       const SizedBox(height: 4),
                       Text(profile?.city ?? '', style: TextStyle(color: context.s8ll.textSecondary)),
@@ -80,6 +90,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ],
             ),
           ),
+          // The prototype's stat row, built only from numbers the account
+          // really has. It showed "Assets £2,840", a follower count and a
+          // level; there is no wallet balance, no follow graph and no
+          // levelling here, so the three real equivalents stand in: how
+          // many of your listings are live right now, how many have sold,
+          // and how many people are watching across all of them.
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: S8llSpacing.lg),
+              decoration: BoxDecoration(
+                color: context.s8ll.surface,
+                borderRadius: BorderRadius.circular(S8llRadius.md),
+              ),
+              child: Row(
+                children: [
+                  _Stat(
+                    value: '${stillLive(myListings, now: DateTime.now()).length}',
+                    label: 'Live now',
+                  ),
+                  _StatDivider(),
+                  _Stat(
+                    value: '${myListings.where((l) => l.status == ListingStatus.sold).length}',
+                    label: 'Sold',
+                  ),
+                  _StatDivider(),
+                  _Stat(
+                    value: '${myListings.fold<int>(0, (sum, l) => sum + l.watcherCount)}',
+                    label: 'Watching',
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: S8llSpacing.md),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: _PayoutStatusCard(payoutsEnabled: profile?.payoutsEnabled ?? false),
@@ -131,6 +176,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ],
       ),
     );
+  }
+}
+
+/// One figure in the profile's stat row. Value large in lime, caption
+/// under it — the prototype's treatment, carrying a real count.
+class _Stat extends StatelessWidget {
+  const _Stat({required this.value, required this.label});
+
+  final String value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: const TextStyle(
+              color: S8llColors.lime,
+              fontWeight: FontWeight.w900,
+              fontSize: 22,
+              height: 1,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(fontSize: 12, color: context.s8ll.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatDivider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(width: 1, height: 28, color: context.s8ll.divider);
   }
 }
 

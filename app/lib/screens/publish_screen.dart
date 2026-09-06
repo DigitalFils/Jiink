@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../models.dart';
 import '../state/app_state.dart';
+import '../theme.dart';
 import 'root_shell.dart';
 
 class PublishScreen extends StatefulWidget {
@@ -72,15 +73,41 @@ class _PublishScreenState extends State<PublishScreen> {
           child: ListView(
             children: [
               ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Image.file(
-                  File(widget.photoPath),
-                  height: 260,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
+                borderRadius: BorderRadius.circular(S8llRadius.lg),
+                child: Stack(
+                  children: [
+                    Image.file(
+                      File(widget.photoPath),
+                      height: 260,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    ),
+                    // Says the actual rule up front rather than after the
+                    // fact: publishing starts an 8-hour clock, and that's
+                    // the whole mechanic.
+                    Positioned(
+                      top: 12,
+                      left: 12,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: S8llColors.lime,
+                          borderRadius: BorderRadius.circular(S8llRadius.pill),
+                        ),
+                        child: const Text(
+                          'Goes live for 8h',
+                          style: TextStyle(
+                            color: S8llColors.black,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
               TextFormField(
                 controller: _titleController,
                 decoration: const InputDecoration(labelText: 'What is it?'),
@@ -89,7 +116,16 @@ class _PublishScreenState extends State<PublishScreen> {
               const SizedBox(height: 12),
               TextFormField(
                 controller: _priceController,
-                decoration: const InputDecoration(labelText: 'Price (£)'),
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+                decoration: const InputDecoration(
+                  labelText: 'Price',
+                  prefixText: '£ ',
+                  prefixStyle: TextStyle(
+                    color: S8llColors.lime,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 // Some keyboards (Samsung's included) insert a stray space
                 // after the decimal point under auto-punctuation, which

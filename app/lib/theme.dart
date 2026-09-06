@@ -182,6 +182,11 @@ ThemeData buildS8llTheme({Brightness brightness = Brightness.dark}) {
     useMaterial3: true,
     brightness: brightness,
     scaffoldBackgroundColor: tint.background,
+    // Bundled in pubspec.yaml, not fetched at runtime. Inter holds together
+    // at the small sizes the feed grid leans on — price, title and seller
+    // line stacked inside a half-width card — where the platform default
+    // gets muddy.
+    fontFamily: 'Inter',
     textTheme: textTheme,
     extensions: [tint],
     colorScheme: ColorScheme(

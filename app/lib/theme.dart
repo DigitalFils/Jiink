@@ -136,6 +136,9 @@ class S8llSpacing {
 class S8llRadius {
   static const sm = 12.0;
   static const md = 16.0;
+  /// For the one or two surfaces big enough to carry it — a full-width hero
+  /// photo, mainly. At card size this much rounding eats the corners.
+  static const lg = 24.0;
   static const pill = 999.0;
 }
 

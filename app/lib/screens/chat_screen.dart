@@ -29,6 +29,15 @@ class _ChatScreenState extends State<ChatScreen> {
     super.dispose();
   }
 
+  /// 24-hour clock, zero-padded. Written out rather than pulled from
+  /// `intl` — the app doesn't depend on it, and this is the only place
+  /// that formats a time.
+  String _timeLabel(DateTime sentAt) {
+    final hour = sentAt.hour.toString().padLeft(2, '0');
+    final minute = sentAt.minute.toString().padLeft(2, '0');
+    return '$hour:$minute';
+  }
+
   void _send(Listing listing, String senderName, String senderId) {
     if (_controller.text.trim().isEmpty) return;
     context.read<ChatRepository>().sendMessage(
@@ -65,7 +74,49 @@ class _ChatScreenState extends State<ChatScreen> {
             context.watch<AppState>().profile?.displayName ?? 'S8LL user';
 
         return Scaffold(
-          appBar: AppBar(title: Text(otherName)),
+          appBar: AppBar(
+            titleSpacing: 0,
+            title: Row(
+              children: [
+                // An initial, not a photo — profiles carry no avatar, and
+                // the prototype's "online • responds fast" line has no
+                // presence data behind it, so neither is drawn.
+                CircleAvatar(
+                  radius: 16,
+                  backgroundColor: S8llColors.limeSoft,
+                  child: Text(
+                    otherName.isEmpty ? '?' : otherName[0].toUpperCase(),
+                    style: const TextStyle(
+                      color: S8llColors.lime,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        otherName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                      ),
+                      Text(
+                        listing.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 12, color: context.s8ll.textSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
           body: Column(
             children: [
               Expanded(
@@ -91,18 +142,51 @@ class _ChatScreenState extends State<ChatScreen> {
                           alignment:
                               fromSelf ? Alignment.centerRight : Alignment.centerLeft,
                           child: Container(
-                            margin: const EdgeInsets.symmetric(vertical: 4),
+                            margin: const EdgeInsets.only(bottom: 10),
                             padding:
                                 const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            constraints: BoxConstraints(
+                              maxWidth: MediaQuery.of(context).size.width * 0.75,
+                            ),
                             decoration: BoxDecoration(
                               color: fromSelf ? S8llColors.lime : context.s8ll.surfaceHigh,
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Text(
-                              message.text,
-                              style: TextStyle(
-                                color: fromSelf ? S8llColors.black : context.s8ll.textPrimary,
+                              // Square off the corner nearest the sender so
+                              // each bubble points back at whoever wrote it.
+                              borderRadius: BorderRadius.only(
+                                topLeft: const Radius.circular(18),
+                                topRight: const Radius.circular(18),
+                                bottomLeft: Radius.circular(fromSelf ? 18 : 4),
+                                bottomRight: Radius.circular(fromSelf ? 4 : 18),
                               ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  message.text,
+                                  style: TextStyle(
+                                    height: 1.3,
+                                    fontSize: 15,
+                                    color: fromSelf
+                                        ? S8llColors.black
+                                        : context.s8ll.textPrimary,
+                                  ),
+                                ),
+                                const SizedBox(height: 3),
+                                // Real send time off the message document.
+                                // No read receipts here — nothing records
+                                // whether the other side has seen it.
+                                Text(
+                                  _timeLabel(message.sentAt),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: fromSelf
+                                        ? S8llColors.black.withValues(alpha: 0.6)
+                                        : context.s8ll.textTertiary,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         );
@@ -119,14 +203,43 @@ class _ChatScreenState extends State<ChatScreen> {
                       Expanded(
                         child: TextField(
                           controller: _controller,
-                          decoration: const InputDecoration(hintText: 'Message'),
+                          textCapitalization: TextCapitalization.sentences,
+                          decoration: InputDecoration(
+                            hintText: 'Message',
+                            filled: true,
+                            fillColor: context.s8ll.surfaceHigh,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: S8llSpacing.lg,
+                              vertical: 12,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(S8llRadius.pill),
+                              borderSide: BorderSide.none,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(S8llRadius.pill),
+                              borderSide: BorderSide.none,
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(S8llRadius.pill),
+                              borderSide: const BorderSide(color: S8llColors.lime),
+                            ),
+                          ),
                           onSubmitted: (_) => _send(listing, selfName, uid),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      IconButton.filled(
-                        onPressed: () => _send(listing, selfName, uid),
-                        icon: const Icon(Icons.send),
+                      const SizedBox(width: S8llSpacing.sm),
+                      Material(
+                        color: S8llColors.lime,
+                        shape: const CircleBorder(),
+                        child: InkWell(
+                          customBorder: const CircleBorder(),
+                          onTap: () => _send(listing, selfName, uid),
+                          child: const Padding(
+                            padding: EdgeInsets.all(12),
+                            child: Icon(Icons.arrow_upward, color: S8llColors.black, size: 20),
+                          ),
+                        ),
                       ),
                     ],
                   ),

@@ -377,6 +377,15 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
   // No s8ll.com yet (SETUP.md flags this same gap for the Stripe return
   // URLs) — sharing the listing's real details is still useful on its
   // own, so this doesn't invent a link to a domain that isn't live.
+  /// Same wording as [CountdownBadge] uses, at the larger size the page
+  /// header wants. Real remaining time — there's no per-second tick behind
+  /// it, so it never pretends to be a live clock.
+  String _remainingLabel(Duration remaining) {
+    if (remaining == Duration.zero) return 'Expired';
+    if (remaining.inHours >= 1) return '${remaining.inHours}h left';
+    return '${remaining.inMinutes}m left';
+  }
+
   void _share() {
     final listing = widget.listing;
     final remaining = listing.remaining(DateTime.now());
@@ -404,8 +413,27 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(listing.title),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        // The wordmark rather than the listing title: the title now leads
+        // the page body at full size, so repeating it here just competed
+        // with itself.
+        title: const Text(
+          'S8LL',
+          style: TextStyle(
+            color: S8llColors.lime,
+            fontWeight: FontWeight.w900,
+            fontSize: 22,
+            letterSpacing: -0.5,
+          ),
+        ),
         actions: [
+          IconButton(
+            icon: Icon(_watching ? Icons.favorite : Icons.favorite_border),
+            color: _watching ? S8llColors.lime : null,
+            tooltip: _watching ? 'Stop watching' : 'Watch',
+            onPressed: _toggleWatch,
+          ),
           IconButton(
             icon: const Icon(Icons.share_outlined),
             tooltip: 'Share',
@@ -432,63 +460,137 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Stack(
-              children: [
-                ListingPhoto(photoUrl: listing.photoUrl, height: 320),
-                Positioned(
-                  top: 12,
-                  right: 12,
-                  child: isSold
-                      ? const _SoldBadge()
-                      : CountdownBadge(remaining: listing.remaining(DateTime.now())),
-                ),
-              ],
+            ClipRRect(
+              borderRadius: BorderRadius.circular(S8llRadius.lg),
+              child: Stack(
+                children: [
+                  ListingPhoto(photoUrl: listing.photoUrl, height: 320),
+                  Positioned(
+                    top: 12,
+                    right: 12,
+                    child: isSold
+                        ? const _SoldBadge()
+                        : CountdownBadge(remaining: listing.remaining(DateTime.now())),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
+            // Title first, then the timer, then the price — the order the
+            // decision actually gets made in: what it is, how long you have,
+            // what it costs.
+            Text(
+              listing.title,
+              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, height: 1.15),
+            ),
+            const SizedBox(height: 12),
+            if (!isSold)
+              Row(
+                children: [
+                  const Icon(Icons.schedule, color: S8llColors.lime, size: 20),
+                  const SizedBox(width: 6),
+                  Text(
+                    _remainingLabel(listing.remaining(DateTime.now())),
+                    style: const TextStyle(
+                      color: S8llColors.lime,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            const SizedBox(height: 12),
             Text(
               '£${listing.priceInPounds.toStringAsFixed(0)}',
               style: const TextStyle(
                 color: S8llColors.lime,
-                fontWeight: FontWeight.w800,
-                fontSize: 28,
+                fontWeight: FontWeight.w900,
+                fontSize: 52,
+                height: 1,
+                letterSpacing: -1.5,
               ),
             ),
-            const SizedBox(height: 4),
-            Text(listing.title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
-            if (listing.description.isNotEmpty) Text(listing.description),
-            const SizedBox(height: 12),
-            Row(
+            Text(
+              listing.delivery.label,
+              style: TextStyle(color: context.s8ll.textSecondary, fontSize: 15),
+            ),
+            const SizedBox(height: 20),
+            Divider(color: context.s8ll.divider, height: 1),
+            const SizedBox(height: 20),
+            if (listing.description.isNotEmpty) ...[
+              Text('Details', style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 10),
+              Text(
+                listing.description,
+                style: TextStyle(color: context.s8ll.textSecondary, height: 1.5, fontSize: 15),
+              ),
+              const SizedBox(height: 14),
+            ],
+            // Only facts the listing actually carries. The prototype also
+            // showed a "Condition" chip; there's no such field, so there's
+            // no chip.
+            Wrap(
+              spacing: S8llSpacing.sm,
+              runSpacing: S8llSpacing.sm,
               children: [
-                Icon(Icons.person_outline, size: 18, color: context.s8ll.textSecondary),
-                const SizedBox(width: 6),
-                Text('${listing.sellerName} · ${listing.sellerCity}',
-                    style: TextStyle(color: context.s8ll.textSecondary)),
+                _DetailChip(label: 'Category', value: listing.category.label),
+                _DetailChip(label: 'Delivery', value: listing.delivery.label),
+                if (_watcherCount > 0)
+                  _DetailChip(
+                    label: 'Watching',
+                    value: _watcherCount == 1 ? '1 person' : '$_watcherCount people',
+                  ),
               ],
             ),
-            const SizedBox(height: 4),
-            SellerRatingBadge(rating: _sellerRating),
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                Icon(Icons.local_shipping_outlined, size: 18, color: context.s8ll.textSecondary),
-                const SizedBox(width: 6),
-                Text(listing.delivery.label, style: TextStyle(color: context.s8ll.textSecondary)),
-              ],
-            ),
-            if (_watcherCount > 0) ...[
-              const SizedBox(height: 6),
-              Row(
+            const SizedBox(height: 20),
+            Divider(color: context.s8ll.divider, height: 1),
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(S8llSpacing.lg),
+              decoration: BoxDecoration(
+                color: context.s8ll.surface,
+                borderRadius: BorderRadius.circular(S8llRadius.md),
+              ),
+              child: Row(
                 children: [
-                  Icon(Icons.visibility_outlined, size: 18, color: context.s8ll.textSecondary),
-                  const SizedBox(width: 6),
-                  Text(
-                    _watcherCount == 1 ? '1 person watching' : '$_watcherCount people watching',
-                    style: TextStyle(color: context.s8ll.textSecondary),
+                  // An initial, not a photo: there's no avatar field on a
+                  // profile, and inventing one would mean showing a face
+                  // that isn't the seller's.
+                  CircleAvatar(
+                    radius: 22,
+                    backgroundColor: S8llColors.limeSoft,
+                    child: Text(
+                      listing.sellerName.isEmpty ? '?' : listing.sellerName[0].toUpperCase(),
+                      style: const TextStyle(
+                        color: S8llColors.lime,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 18,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          listing.sellerName,
+                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          listing.sellerCity,
+                          style: TextStyle(color: context.s8ll.textSecondary, fontSize: 13),
+                        ),
+                        const SizedBox(height: 6),
+                        SellerRatingBadge(rating: _sellerRating),
+                      ],
+                    ),
                   ),
                 ],
               ),
-            ],
+            ),
             const SizedBox(height: 24),
             if (isSold) ...[
               Text('This item has sold.', style: TextStyle(color: context.s8ll.textSecondary)),
@@ -697,8 +799,44 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
   }
 }
 
+/// A labelled fact about the listing — small caption over the value, on a
+/// raised surface. Only ever built from a field the listing really has.
+class _DetailChip extends StatelessWidget {
+  const _DetailChip({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: context.s8ll.surface,
+        borderRadius: BorderRadius.circular(S8llRadius.sm),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: TextStyle(fontSize: 11, color: context.s8ll.textTertiary),
+          ),
+          const SizedBox(height: 1),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _SoldBadge extends StatelessWidget {
   const _SoldBadge();
+
 
   @override
   Widget build(BuildContext context) {

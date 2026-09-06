@@ -6,6 +6,7 @@ import 'screens/drops_screen.dart';
 import 'screens/feed_screen.dart';
 import 'screens/messages_screen.dart';
 import 'screens/profile_screen.dart';
+import 'screens/publish_screen.dart';
 import 'services/chat_repository.dart';
 import 'services/offers_repository.dart';
 import 'services/reviews_repository.dart';
@@ -70,12 +71,25 @@ Listing _listing({
 /// sold card.
 final _listings = [
   _listing(title: 'Vintage Film Camera', pounds: 220, left: const Duration(hours: 6), watchers: 12),
-  _listing(title: 'Noise Cancelling Headphones', pounds: 180, left: const Duration(hours: 6), seller: 'Sam'),
-  _listing(title: 'Ceramic Succulent Planter', pounds: 43, left: const Duration(hours: 6), watchers: 3),
+  _listing(
+      title: 'Noise Cancelling Headphones',
+      pounds: 180,
+      left: const Duration(hours: 6),
+      seller: 'Sam'),
+  _listing(
+      title: 'Ceramic Succulent Planter', pounds: 43, left: const Duration(hours: 6), watchers: 3),
   _listing(title: 'Leather Tote Bag', pounds: 95, left: const Duration(hours: 6), seller: 'Jordan'),
-  _listing(title: 'Carbon road bike, 54cm, full Ultegra groupset', pounds: 3200, left: const Duration(minutes: 42), watchers: 41),
+  _listing(
+      title: 'Carbon road bike, 54cm, full Ultegra groupset',
+      pounds: 3200,
+      left: const Duration(minutes: 42),
+      watchers: 41),
   _listing(title: 'PS5', pounds: 280, left: const Duration(seconds: 30), seller: 'Sam'),
-  _listing(title: 'Nike Air Max 90, UK9', pounds: 45, left: const Duration(hours: 2), status: ListingStatus.sold),
+  _listing(
+      title: 'Nike Air Max 90, UK9',
+      pounds: 45,
+      left: const Duration(hours: 2),
+      status: ListingStatus.sold),
   _listing(title: 'Standing desk', pounds: 150, left: const Duration(hours: 7), city: ''),
 ];
 
@@ -189,23 +203,37 @@ class _DevPreviewAppState extends State<DevPreviewApp> {
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         theme: buildS8llTheme(),
-        home: Scaffold(
-          backgroundColor: S8llColors.black,
-          extendBody: true,
-          body: Stack(
-            children: [
-              IndexedStack(index: _tab.index, children: _screens),
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: S8llBottomNavBar(
-                  current: _tab,
-                  onSelect: (tab) => setState(() => _tab = tab),
-                  onPublish: () {},
+        // Builder so the nav bar's callbacks get a context *below* the
+        // MaterialApp. Without it Navigator.of() has nothing to find and
+        // the publish button throws instead of opening anything. The real
+        // shell doesn't need this — it is itself the MaterialApp's home.
+        home: Builder(
+          builder: (context) => Scaffold(
+            backgroundColor: S8llColors.black,
+            extendBody: true,
+            body: Stack(
+              children: [
+                IndexedStack(index: _tab.index, children: _screens),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: S8llBottomNavBar(
+                    current: _tab,
+                    onSelect: (tab) => setState(() => _tab = tab),
+                    // The real flow opens the camera first; there is none
+                    // here, so this goes straight to the form with a path
+                    // that doesn't resolve — which also exercises the
+                    // missing-photo fallback.
+                    onPublish: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const PublishScreen(photoPath: '/dev/null/no-photo.jpg'),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

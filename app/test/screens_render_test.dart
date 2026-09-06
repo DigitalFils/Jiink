@@ -8,6 +8,7 @@ import 'package:s8ll/screens/drops_screen.dart';
 import 'package:s8ll/screens/feed_screen.dart';
 import 'package:s8ll/screens/messages_screen.dart';
 import 'package:s8ll/screens/profile_screen.dart';
+import 'package:s8ll/screens/publish_screen.dart';
 import 'package:s8ll/services/chat_repository.dart';
 import 'package:s8ll/services/reviews_repository.dart';
 import 'package:s8ll/services/saved_searches_repository.dart';
@@ -185,6 +186,59 @@ void main() {
     );
     expect(find.text('Sold'), findsOneWidget);
     await settle(tester);
+  });
+
+  testWidgets('the sell screen renders its whole form, Publish button included',
+      (tester) async {
+    // The Publish button was once entirely under the floating nav — the
+    // whole point of the screen, invisible, and only found by scrolling to
+    // the bottom of a screenshot. This doesn't assert it's above the fold
+    // (the test font is far wider than Inter, so everything sits lower
+    // here than on a device); it asserts the form builds without
+    // overflowing and the button is reachable.
+    tester.view.physicalSize = phone;
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    // A path that doesn't resolve, which also exercises the fallback for a
+    // camera capture the OS evicted before publish.
+    await tester.pumpWidget(wrap(const PublishScreen(photoPath: '/dev/null/none.jpg')));
+    await tester.pump();
+
+    expect(find.text('Goes live for 8h'), findsOneWidget);
+    expect(find.text('£'), findsOneWidget);
+    // Every category and delivery option is a chip, not buried in a menu.
+    expect(find.text('Sports & outdoors'), findsOneWidget);
+    expect(find.text('Meet up or ship'), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.text('Publish now'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+      maxScrolls: 20,
+    );
+    expect(find.text('Publish now'), findsOneWidget);
+  });
+
+  testWidgets('the sell screen refuses a listing with no name and no price', (tester) async {
+    tester.view.physicalSize = phone;
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(wrap(const PublishScreen(photoPath: '/dev/null/none.jpg')));
+    await tester.pump();
+
+    await tester.scrollUntilVisible(
+      find.text('Publish now'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+      maxScrolls: 20,
+    );
+    await tester.tap(find.text('Publish now'));
+    await tester.pump();
+
+    expect(find.text('Give it a name'), findsOneWidget);
+    expect(find.text('Set a price'), findsOneWidget);
   });
 
   testWidgets('the inbox renders a thread row per conversation', (tester) async {

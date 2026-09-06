@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/demo_data.dart';
 import '../theme.dart';
+import '../widgets/logo.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key, required this.authService});
@@ -89,16 +90,11 @@ class _AuthScreenState extends State<AuthScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text(
-                    'S8LL',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: S8llColors.lime,
-                      fontSize: 40,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 1,
-                    ),
-                  ),
+                  // The shared wordmark rather than a local copy of it —
+                  // this one had positive letter-spacing while every other
+                  // screen sets it tight, so the first screen anyone sees
+                  // was the one that didn't match.
+                  const Center(child: S8llLogo(size: 52)),
                   const SizedBox(height: 4),
                   Text(
                     'Snap it, sell it.',
@@ -140,14 +136,23 @@ class _AuthScreenState extends State<AuthScreen> {
                   ),
                   if (_error != null) ...[
                     const SizedBox(height: 16),
-                    Text(_error!, style: const TextStyle(color: Colors.redAccent)),
+                    Text(_error!, style: const TextStyle(color: S8llColors.error)),
                   ],
                   const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: _submitting ? null : _submit,
-                    child: Text(_submitting
-                        ? 'Please wait…'
-                        : (_isSignUp ? 'Create account' : 'Sign in')),
+                  SizedBox(
+                    height: 56,
+                    child: ElevatedButton(
+                      onPressed: _submitting ? null : _submit,
+                      style: ElevatedButton.styleFrom(
+                        textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(S8llRadius.md),
+                        ),
+                      ),
+                      child: Text(_submitting
+                          ? 'Please wait…'
+                          : (_isSignUp ? 'Create account' : 'Sign in')),
+                    ),
                   ),
                   const SizedBox(height: 12),
                   TextButton(

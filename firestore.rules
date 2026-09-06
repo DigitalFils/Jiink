@@ -60,8 +60,12 @@ service cloud.firestore {
     match /orders/{orderId} {
       allow read: if request.auth != null
         && (request.auth.uid == resource.data.buyerId || request.auth.uid == resource.data.sellerId);
+      // Only on an order that actually stands: the webhook also writes
+      // orders for a payment it is refunding (a buyer who lost the race
+      // for the same item), and there is nothing to ship for one of those.
       allow update: if request.auth != null
         && request.auth.uid == resource.data.sellerId
+        && resource.data.status == 'paid'
         && request.resource.data.diff(resource.data).affectedKeys()
              .hasOnly(['trackingNumber', 'carrier', 'trackingUpdatedAt']);
       allow create, delete: if false;
@@ -109,7 +113,11 @@ service cloud.firestore {
         && request.auth.uid == request.resource.data.buyerId
         && get(/databases/$(database)/documents/orders/$(request.resource.data.orderId)).data.buyerId == request.auth.uid
         && get(/databases/$(database)/documents/orders/$(request.resource.data.orderId)).data.listingId == listingId
-        && get(/databases/$(database)/documents/orders/$(request.resource.data.orderId)).data.sellerId == request.resource.data.sellerId;
+        && get(/databases/$(database)/documents/orders/$(request.resource.data.orderId)).data.sellerId == request.resource.data.sellerId
+        // A refunded order is not a purchase. Without this, the buyer whose
+        // payment lost a race — and got every penny back — could still rate
+        // a seller they never bought from.
+        && get(/databases/$(database)/documents/orders/$(request.resource.data.orderId)).data.status == 'paid';
       allow update, delete: if false;
     }
 

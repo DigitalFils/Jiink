@@ -110,6 +110,28 @@ export const onOrderCreated = onDocumentCreated("orders/{orderId}", async (event
   const listingSnap = await db.collection("listings").doc(order.listingId as string).get();
   const listingTitle = (listingSnap.data()?.title as string | undefined) ?? "your item";
 
+  // Not every order is a sale. The webhook also records the buyer who lost
+  // a race for the same item and is being refunded — telling that seller
+  // "Sold!" a second time, and that buyer their purchase is confirmed,
+  // would be two lies at once. They get the truth instead, and the seller
+  // gets nothing, because nothing happened to them.
+  if (order.status !== "paid") {
+    await sendPushToUser(
+      order.buyerId as string,
+      {
+        title: "Refunded",
+        body: `Someone bought ${listingTitle} moments before you. Your money is on its way back.`,
+      },
+      { type: "refund", listingId: order.listingId as string }
+    );
+    logger.info("Sent refund push to buyer", {
+      component: COMPONENT,
+      listingId: order.listingId,
+      status: order.status,
+    });
+    return;
+  }
+
   await Promise.all([
     sendPushToUser(
       order.sellerId as string,

@@ -8,6 +8,13 @@ export function makeFakeStripe() {
         ...params,
       })),
     },
+    refunds: {
+      create: jest.fn(async (params: Record<string, unknown>) => ({
+        id: "re_test_123",
+        status: "succeeded",
+        ...params,
+      })),
+    },
     accounts: {
       create: jest.fn(async (params: Record<string, unknown>) => ({
         id: "acct_test_123",

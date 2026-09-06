@@ -276,6 +276,33 @@ class _FeedScreenState extends State<FeedScreen> {
                 ],
               ),
             ),
+            // Categories sit on the feed itself rather than only inside the
+            // filter sheet: browsing by category is the one filter people
+            // reach for constantly, and burying it behind an icon meant the
+            // feed looked like an undifferentiated wall. Writes the same
+            // `_category` the sheet does, so the two stay in step.
+            SizedBox(
+              height: 36,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: S8llSpacing.lg),
+                children: [
+                  _CategoryChip(
+                    label: 'All',
+                    selected: _category == null,
+                    onTap: () => setState(() => _category = null),
+                  ),
+                  for (final category in ListingCategory.values)
+                    _CategoryChip(
+                      label: category.label,
+                      selected: _category == category,
+                      onTap: () => setState(
+                        () => _category = _category == category ? null : category,
+                      ),
+                    ),
+                ],
+              ),
+            ),
             Expanded(
               child: listings.isEmpty
                   ? _EmptyFeed(hasFilters: _hasActiveFilters)
@@ -290,7 +317,11 @@ class _FeedScreenState extends State<FeedScreen> {
                         crossAxisCount: 2,
                         mainAxisSpacing: S8llSpacing.md,
                         crossAxisSpacing: S8llSpacing.md,
-                        childAspectRatio: 0.66,
+                        // Taller than the text block strictly needs: the
+                        // action row added ~40px, and the photo is what
+                        // sells the item, so the card grows rather than
+                        // letting Expanded eat into the image.
+                        childAspectRatio: 0.60,
                       ),
                       itemCount: listings.length,
                       itemBuilder: (context, index) {
@@ -379,10 +410,138 @@ class _GridCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(color: Colors.white54, fontSize: 11),
                   ),
+                  const SizedBox(height: S8llSpacing.sm),
+                  _CardAction(listing: listing, onTap: onTap),
                 ],
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The one action a card can honestly offer, straight off the listing.
+///
+/// [Listing.canBuyInApp] gates *both* buttons on the detail screen — a
+/// meetup-only listing has no Buy and no Make-an-offer there, only Watch
+/// and chat. So a card for one must not show a button implying otherwise;
+/// it says how the sale happens instead. Buying and offering stay on the
+/// detail screen where the Stripe flow and the offer dialog already live —
+/// this only carries you there, the way a shop-front price tag does.
+class _CardAction extends StatelessWidget {
+  const _CardAction({required this.listing, required this.onTap});
+
+  final Listing listing;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    if (listing.status == ListingStatus.sold) {
+      return const _CardActionLabel(
+        label: 'Sold',
+        icon: Icons.check_circle_outline,
+        color: S8llColors.grey,
+      );
+    }
+    if (!listing.canBuyInApp) {
+      return const _CardActionLabel(
+        label: 'Meet up',
+        icon: Icons.place_outlined,
+        color: S8llColors.grey,
+      );
+    }
+    return SizedBox(
+      height: 32,
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: onTap,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: S8llColors.lime,
+          foregroundColor: S8llColors.black,
+          padding: EdgeInsets.zero,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(S8llRadius.pill),
+          ),
+        ),
+        // The row is a fixed height so cards stay aligned; scaleDown keeps
+        // the label inside it at large system text sizes rather than
+        // overflowing the button.
+        child: const FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            'Buy now',
+            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The non-button half of [_CardAction] — same footprint so cards in a row
+/// stay aligned whether or not there's something to tap.
+class _CardActionLabel extends StatelessWidget {
+  const _CardActionLabel({required this.label, required this.icon, required this.color});
+
+  final String label;
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 32,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerLeft,
+        child: Row(
+          children: [
+            Icon(icon, size: 14, color: color),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A category pill on the feed itself. Lighter than the Material [FilterChip]
+/// used inside the filter sheet — a row of these sits under the header all
+/// the time, so it has to read as navigation, not as a form control.
+class _CategoryChip extends StatelessWidget {
+  const _CategoryChip({required this.label, required this.selected, required this.onTap});
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: S8llSpacing.xs),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          decoration: BoxDecoration(
+            color: selected ? S8llColors.lime : S8llColors.charcoal,
+            borderRadius: BorderRadius.circular(S8llRadius.pill),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: selected ? S8llColors.black : S8llColors.white,
+              fontSize: 13,
+              fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+            ),
+          ),
         ),
       ),
     );

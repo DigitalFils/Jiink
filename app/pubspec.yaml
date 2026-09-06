@@ -32,3 +32,22 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  # Bundled rather than fetched at runtime (which is what the google_fonts
+  # package does): the pop-up runs on venue wifi, and a font that arrives
+  # over the network means the first launch there renders in the fallback
+  # face — or doesn't render as intended at all if the connection drops.
+  # Only the weights actually used are shipped; Medium (500) isn't one.
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Inter-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Inter-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Inter-ExtraBold.ttf
+          weight: 800
+        - asset: assets/fonts/Inter-Black.ttf
+          weight: 900

@@ -63,9 +63,14 @@ service cloud.firestore {
       // Only on an order that actually stands: the webhook also writes
       // orders for a payment it is refunding (a buyer who lost the race
       // for the same item), and there is nothing to ship for one of those.
+      // get() with a default rather than a bare field read: referencing a
+      // property a document doesn't have is an evaluation error in rules,
+      // which surfaces as a flat permission-denied. Every order the webhook
+      // has ever written carries a status, but defaulting to 'paid' means
+      // a doc that somehow doesn't can't lock its seller out.
       allow update: if request.auth != null
         && request.auth.uid == resource.data.sellerId
-        && resource.data.status == 'paid'
+        && resource.data.get('status', 'paid') == 'paid'
         && request.resource.data.diff(resource.data).affectedKeys()
              .hasOnly(['trackingNumber', 'carrier', 'trackingUpdatedAt']);
       allow create, delete: if false;
@@ -116,8 +121,10 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/orders/$(request.resource.data.orderId)).data.sellerId == request.resource.data.sellerId
         // A refunded order is not a purchase. Without this, the buyer whose
         // payment lost a race — and got every penny back — could still rate
-        // a seller they never bought from.
-        && get(/databases/$(database)/documents/orders/$(request.resource.data.orderId)).data.status == 'paid';
+        // a seller they never bought from. Defaulted for the same reason as
+        // the orders rule above.
+        && get(/databases/$(database)/documents/orders/$(request.resource.data.orderId))
+             .data.get('status', 'paid') == 'paid';
       allow update, delete: if false;
     }
 

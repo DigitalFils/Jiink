@@ -206,7 +206,12 @@ class _FeedScreenState extends State<FeedScreen> {
     final appState = context.watch<AppState>();
     final uid = appState.uid;
     final blocked = appState.profile?.blockedUserIds ?? const [];
-    final visible = appState.listings.where((l) => !blocked.contains(l.sellerId)).toList();
+    // Expiry first, then blocking, then the user's own search/category/price
+    // choices — so the "N live now" pill counts what's genuinely still live
+    // rather than every listing ever posted.
+    final visible = stillLive(appState.listings, now: DateTime.now())
+        .where((l) => !blocked.contains(l.sellerId))
+        .toList();
     final listings = filterListings(
       visible,
       query: _searchController.text,
@@ -332,7 +337,7 @@ class _GridCard extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  _FullBleedPhoto(url: listing.photoUrl),
+                  _ListingPhoto(url: listing.photoUrl),
                   Positioned(
                     top: 8,
                     right: 8,
@@ -384,8 +389,8 @@ class _GridCard extends StatelessWidget {
   }
 }
 
-class _FullBleedPhoto extends StatelessWidget {
-  const _FullBleedPhoto({required this.url});
+class _ListingPhoto extends StatelessWidget {
+  const _ListingPhoto({required this.url});
 
   final String? url;
 

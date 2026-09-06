@@ -10,7 +10,9 @@ class ProfileScreen extends StatelessWidget {
       backgroundColor: AppTheme.background,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
+          // Floating bottom nav overlaps the page; without this the last
+          // row of My Collection sat under it and its price was cut off.
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -80,7 +82,7 @@ class ProfileScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Алексей Волков',
+                'Alex Walker',
                 style: TextStyle(
                   fontFamily: 'Inter',
                   fontSize: 22,
@@ -201,21 +203,21 @@ class ProfileScreen extends StatelessWidget {
         children: [
           Expanded(
             child: _OrderTab(
-              label: '待付款',
+              label: 'To pay',
               count: 2,
               isActive: true,
             ),
           ),
           Expanded(
             child: _OrderTab(
-              label: '待发货',
+              label: 'To ship',
               count: 1,
               isActive: false,
             ),
           ),
           Expanded(
             child: _OrderTab(
-              label: '已完成',
+              label: 'Completed',
               count: 0,
               isActive: false,
             ),

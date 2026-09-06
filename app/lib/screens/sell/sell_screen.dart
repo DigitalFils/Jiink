@@ -143,15 +143,15 @@ class _SellScreenState extends State<SellScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
+          const Row(
             children: [
               Icon(
                 Icons.diamond_outlined,
                 color: AppTheme.accent,
                 size: 24,
               ),
-              const SizedBox(width: 6),
-              const Text(
+              SizedBox(width: 6),
+              Text(
                 'S8LL',
                 style: TextStyle(
                   fontFamily: 'Inter',
@@ -161,8 +161,8 @@ class _SellScreenState extends State<SellScreen> {
                   letterSpacing: -1,
                 ),
               ),
-              const SizedBox(width: 8),
-              const Text(
+              SizedBox(width: 8),
+              Text(
                 'Sell',
                 style: TextStyle(
                   fontFamily: 'Inter',
@@ -190,7 +190,7 @@ class _SellScreenState extends State<SellScreen> {
         color: AppTheme.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: AppTheme.accent.withOpacity(0.5),
+          color: AppTheme.accent.withValues(alpha: 0.5),
           width: 1.5,
           style: BorderStyle.solid,
         ),
@@ -360,8 +360,8 @@ class _SellScreenState extends State<SellScreen> {
         Switch(
           value: value,
           onChanged: onChanged,
-          activeColor: AppTheme.accent,
-          activeTrackColor: AppTheme.accent.withOpacity(0.3),
+          activeThumbColor: AppTheme.accent,
+          activeTrackColor: AppTheme.accent.withValues(alpha: 0.3),
           inactiveThumbColor: AppTheme.textMuted,
           inactiveTrackColor: AppTheme.surfaceLight,
         ),

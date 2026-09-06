@@ -67,15 +67,15 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               child: const Icon(Icons.arrow_back, color: AppTheme.textPrimary, size: 22),
             ),
           ),
-          Row(
+          const Row(
             children: [
               Icon(
                 Icons.local_fire_department_rounded,
                 color: AppTheme.accent,
                 size: 28,
               ),
-              const SizedBox(width: 6),
-              const Text(
+              SizedBox(width: 6),
+              Text(
                 'S8LL',
                 style: TextStyle(
                   fontFamily: 'Inter',
@@ -358,7 +358,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   Widget _buildBottomBar() {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppTheme.surface,
         border: Border(top: BorderSide(color: AppTheme.border, width: 0.5)),
       ),

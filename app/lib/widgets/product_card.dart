@@ -107,7 +107,7 @@ class ProductCard extends StatelessWidget {
                   const SizedBox(height: 8),
                   Text(
                     '£${product.price.toStringAsFixed(0)}',
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontFamily: 'Inter',
                       fontSize: 32,
                       fontWeight: FontWeight.w900,

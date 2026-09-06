@@ -22,7 +22,6 @@ class AppTheme {
       primary: accent,
       secondary: accentDark,
       surface: surface,
-      background: background,
       error: error,
     ),
     textTheme: const TextTheme(
@@ -95,7 +94,9 @@ class AppTheme {
         color: background,
       ),
     ),
-    cardTheme: CardTheme(
+    // CardThemeData, not CardTheme — ThemeData.cardTheme stopped taking the
+    // widget type in Flutter 3.22. As written the prototype did not compile.
+    cardTheme: CardThemeData(
       color: cardBackground,
       elevation: 0,
       shape: RoundedRectangleBorder(
@@ -109,19 +110,19 @@ class AppTheme {
       scrolledUnderElevation: 0,
       centerTitle: false,
     ),
-    bottomNavigationBarTheme: BottomNavigationBarThemeData(
+    bottomNavigationBarTheme: const BottomNavigationBarThemeData(
       backgroundColor: surface,
       selectedItemColor: accent,
       unselectedItemColor: textMuted,
       type: BottomNavigationBarType.fixed,
       showSelectedLabels: true,
       showUnselectedLabels: true,
-      selectedLabelStyle: const TextStyle(
+      selectedLabelStyle: TextStyle(
         fontFamily: 'Inter',
         fontSize: 12,
         fontWeight: FontWeight.w600,
       ),
-      unselectedLabelStyle: const TextStyle(
+      unselectedLabelStyle: TextStyle(
         fontFamily: 'Inter',
         fontSize: 12,
         fontWeight: FontWeight.w500,

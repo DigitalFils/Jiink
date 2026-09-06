@@ -133,7 +133,7 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
       decoration: BoxDecoration(
         color: AppTheme.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppTheme.accent.withOpacity(0.4), width: 1.5),
+        border: Border.all(color: AppTheme.accent.withValues(alpha: 0.4), width: 1.5),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -176,7 +176,7 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
       decoration: BoxDecoration(
         color: AppTheme.cardBackground,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppTheme.accent.withOpacity(0.3), width: 1),
+        border: Border.all(color: AppTheme.accent.withValues(alpha: 0.3), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

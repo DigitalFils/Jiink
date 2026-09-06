@@ -49,7 +49,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppTheme.surface,
         border: Border(bottom: BorderSide(color: AppTheme.border, width: 0.5)),
       ),
@@ -60,7 +60,7 @@ class _ChatScreenState extends State<ChatScreen> {
             onPressed: () => Navigator.pop(context),
           ),
           const SizedBox(width: 4),
-          Icon(
+          const Icon(
             Icons.diamond_outlined,
             color: AppTheme.accent,
             size: 22,
@@ -174,12 +174,12 @@ class _ChatScreenState extends State<ChatScreen> {
                   style: TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 11,
-                    color: isMe ? AppTheme.background.withOpacity(0.6) : AppTheme.textMuted,
+                    color: isMe ? AppTheme.background.withValues(alpha: 0.6) : AppTheme.textMuted,
                   ),
                 ),
                 if (isMe) ...[
                   const SizedBox(width: 4),
-                  Icon(Icons.done_all, color: AppTheme.background.withOpacity(0.6), size: 14),
+                  Icon(Icons.done_all, color: AppTheme.background.withValues(alpha: 0.6), size: 14),
                 ],
               ],
             ),
@@ -210,36 +210,37 @@ class _ChatScreenState extends State<ChatScreen> {
             children: _quickOffers.map((discount) {
               final price = (_originalPrice * discount).toStringAsFixed(2);
               final percent = (discount * 100).toInt();
-              final isSelected = false;
+              // The original carried an `isSelected` that was hardcoded
+              // false, so every selected-state branch was unreachable and
+              // the analyzer flagged four counts of dead code. There is no
+              // tap handler either — these pills are decoration. Collapsed
+              // to what they actually render.
               return Expanded(
                 child: Container(
                   margin: const EdgeInsets.only(right: 8),
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   decoration: BoxDecoration(
-                    color: isSelected ? AppTheme.accent : AppTheme.surface,
+                    color: AppTheme.surface,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: isSelected ? AppTheme.accent : AppTheme.border,
-                      width: 1.5,
-                    ),
+                    border: Border.all(color: AppTheme.border, width: 1.5),
                   ),
                   child: Column(
                     children: [
                       Text(
                         '$percent%',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontFamily: 'Inter',
                           fontSize: 14,
                           fontWeight: FontWeight.w800,
-                          color: isSelected ? AppTheme.background : AppTheme.accent,
+                          color: AppTheme.accent,
                         ),
                       ),
                       Text(
                         '— £$price',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontFamily: 'Inter',
                           fontSize: 12,
-                          color: isSelected ? AppTheme.background : AppTheme.textSecondary,
+                          color: AppTheme.textSecondary,
                         ),
                       ),
                     ],
@@ -256,7 +257,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget _buildInputBar() {
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 20),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppTheme.surface,
         border: Border(top: BorderSide(color: AppTheme.border, width: 0.5)),
       ),

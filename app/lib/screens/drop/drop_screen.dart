@@ -129,9 +129,9 @@ class _DropScreenState extends State<DropScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: AppTheme.background.withOpacity(0.1),
+                          color: AppTheme.background.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: AppTheme.background.withOpacity(0.3)),
+                          border: Border.all(color: AppTheme.background.withValues(alpha: 0.3)),
                         ),
                         child: Text(
                           _formatDuration(_timeRemaining),

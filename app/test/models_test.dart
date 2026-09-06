@@ -51,29 +51,50 @@ void main() {
   });
 
   group('canBuyInApp', () {
+    final now = DateTime(2026, 1, 1, 12);
+
     test('meet-up-only listings cannot be bought in app', () {
       final listing = _listing(
-        postedAt: DateTime.now(),
+        postedAt: now,
         delivery: DeliveryMethod.meetup,
       );
-      expect(listing.canBuyInApp, isFalse);
+      expect(listing.canBuyInApp(now), isFalse);
     });
 
     test('shippable live listings can be bought in app', () {
       final listing = _listing(
-        postedAt: DateTime.now(),
+        postedAt: now,
         delivery: DeliveryMethod.shipping,
       );
-      expect(listing.canBuyInApp, isTrue);
+      expect(listing.canBuyInApp(now), isTrue);
     });
 
     test('sold listings can never be bought again, regardless of delivery', () {
       final listing = _listing(
-        postedAt: DateTime.now(),
+        postedAt: now,
         delivery: DeliveryMethod.both,
         status: ListingStatus.sold,
       );
-      expect(listing.canBuyInApp, isFalse);
+      expect(listing.canBuyInApp(now), isFalse);
+    });
+
+    test('an expired drop cannot be bought, even though its status is still live', () {
+      // Nothing ever writes an "expired" status, so this listing reads as
+      // live forever. Before expiry was part of the rule, the buy button
+      // stayed up on a drop that had already left the feed.
+      final listing = _listing(
+        postedAt: now.subtract(const Duration(hours: 9)),
+        delivery: DeliveryMethod.shipping,
+      );
+      expect(listing.status, ListingStatus.live);
+      expect(listing.canBuyInApp(now), isFalse);
+    });
+
+    test('bumping an expired drop makes it buyable again', () {
+      // Bump resets postedAt, which is the only thing expiry is measured
+      // from — so the seller always has a way back to a live sale.
+      final bumped = _listing(postedAt: now, delivery: DeliveryMethod.shipping);
+      expect(bumped.canBuyInApp(now), isTrue);
     });
   });
 

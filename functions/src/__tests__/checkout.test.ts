@@ -1,3 +1,4 @@
+import { Timestamp } from "firebase-admin/firestore";
 import { FakeFirestore } from "./helpers/fakeFirestore";
 import { makeFakeStripe } from "./helpers/fakeStripe";
 
@@ -105,6 +106,69 @@ describe("createListingPaymentIntent", () => {
       } as never),
       "failed-precondition"
     );
+  });
+
+  it("rejects a drop whose 8 hours have run out, though its status still reads live", async () => {
+    // Nothing ever writes an "expired" status — only the webhook touches
+    // status, and only to mark a listing sold. So an ended drop looks live
+    // here forever, and without the expiry check we would charge the buyer
+    // for something the seller has already watched leave the feed.
+    seedLiveListing({
+      postedAt: Timestamp.fromMillis(Date.now() - 9 * 60 * 60 * 1000),
+      liveForSeconds: 28_800,
+    });
+    seedPayoutReadySeller();
+    await expectHttpsError(
+      createListingPaymentIntent.run({
+        data: { listingId: LISTING },
+        auth: { uid: BUYER },
+      } as never),
+      "failed-precondition"
+    );
+  });
+
+  it("allows a drop still inside its window", async () => {
+    seedLiveListing({
+      postedAt: Timestamp.fromMillis(Date.now() - 60 * 60 * 1000),
+      liveForSeconds: 28_800,
+    });
+    seedPayoutReadySeller();
+    await expect(
+      createListingPaymentIntent.run({
+        data: { listingId: LISTING },
+        auth: { uid: BUYER },
+      } as never)
+    ).resolves.toBeDefined();
+  });
+
+  it("falls back to the 8 hour default when liveForSeconds is absent", async () => {
+    // Listings created before the field existed carry no liveForSeconds.
+    seedLiveListing({
+      postedAt: Timestamp.fromMillis(Date.now() - 9 * 60 * 60 * 1000),
+    });
+    seedPayoutReadySeller();
+    await expectHttpsError(
+      createListingPaymentIntent.run({
+        data: { listingId: LISTING },
+        auth: { uid: BUYER },
+      } as never),
+      "failed-precondition"
+    );
+  });
+
+  it("lets a listing with no postedAt through rather than blocking on missing data", async () => {
+    // Deliberately fail-open: with no postedAt there is nothing to measure
+    // expiry against, and refusing the sale over a field a real listing
+    // always has would break checkout on corrupt data instead of on an
+    // ended drop.
+    seedLiveListing();
+    seedPayoutReadySeller();
+    await expect(
+      createListingPaymentIntent.run({
+        data: { listingId: LISTING },
+        auth: { uid: BUYER },
+      } as never)
+    ).resolves.toBeDefined();
   });
 
   it("rejects a seller who hasn't finished payout onboarding", async () => {

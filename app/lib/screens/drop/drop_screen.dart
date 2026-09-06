@@ -110,22 +110,37 @@ class _DropScreenState extends State<DropScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Row(
-                        children: [
-                          Icon(Icons.circle, color: AppTheme.liveRed, size: 12),
-                          SizedBox(width: 10),
-                          Text(
-                            'LIVE 6PM DROP LIVE NOW',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 22,
-                              fontWeight: FontWeight.w900,
-                              color: AppTheme.background,
-                              letterSpacing: -0.5,
+                      // Expanded + scaleDown: at 22px this label is wider
+                      // than the banner on a normal phone, and being rigid
+                      // it shoved the countdown clean off the right edge —
+                      // the one part of a live-drop banner that has to be
+                      // readable. Now the label gives way instead.
+                      const Expanded(
+                        child: Row(
+                          children: [
+                            Icon(Icons.circle, color: AppTheme.liveRed, size: 12),
+                            SizedBox(width: 10),
+                            Flexible(
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  'LIVE 6PM DROP LIVE NOW',
+                                  maxLines: 1,
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w900,
+                                    color: AppTheme.background,
+                                    letterSpacing: -0.5,
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
+                      const SizedBox(width: 10),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(

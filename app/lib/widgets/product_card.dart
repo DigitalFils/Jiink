@@ -25,12 +25,19 @@ class ProductCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Stack(
-              children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                  child: AspectRatio(
-                    aspectRatio: 1,
+            // Expanded, not AspectRatio: the grid cell has a fixed height,
+            // so a square image plus the text block came to more than the
+            // cell could hold and the card overflowed — the price was
+            // sliced in half and the location row never drew at all.
+            // Letting the photo take the slack means the text always fits,
+            // and it shrinks rather than the price disappearing when the
+            // title wraps to two lines or the system text size goes up.
+            Expanded(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
                     child: Image.network(
                       product.imageUrl,
                       fit: BoxFit.cover,
@@ -42,7 +49,6 @@ class ProductCard extends StatelessWidget {
                       },
                     ),
                   ),
-                ),
                 Positioned(
                   top: 10,
                   right: 10,
@@ -91,7 +97,8 @@ class ProductCard extends StatelessWidget {
                       ),
                     ),
                   ),
-              ],
+                ],
+              ),
             ),
             Padding(
               padding: const EdgeInsets.all(14),

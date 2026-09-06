@@ -119,8 +119,17 @@ service cloud.firestore {
     // classified as an update and falls through to the rule below, which
     // only the seller (not the buyer) can use.
     match /offers/{offerId} {
+      // A buyer viewing a listing they haven't offered on yet reads this
+      // doc before it exists — resource is then null, and referencing
+      // resource.data on a null resource is a rules evaluation error that
+      // Firestore reports as permission-denied, crashing the read. The
+      // exists() check short-circuits before that dereference ever
+      // happens; reading a document that isn't there can't leak anything,
+      // so it's safe to allow.
       allow read: if request.auth != null
-        && (request.auth.uid == resource.data.buyerId || request.auth.uid == resource.data.sellerId);
+        && (!exists(/databases/$(database)/documents/offers/$(offerId))
+            || request.auth.uid == resource.data.buyerId
+            || request.auth.uid == resource.data.sellerId);
       allow create: if request.auth != null
         && request.auth.uid == request.resource.data.buyerId
         && offerId == request.resource.data.listingId + '_' + request.resource.data.buyerId

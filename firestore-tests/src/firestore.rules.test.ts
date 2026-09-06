@@ -531,4 +531,15 @@ describe("offers/{offerId}", () => {
     await assertSucceeds(dbAs(ALICE).doc(`offers/${OFFER}`).get());
     await assertFails(dbAs(CAROL).doc(`offers/${OFFER}`).get());
   });
+
+  it("lets anyone read an offer that doesn't exist yet, instead of erroring on the null resource", async () => {
+    // The app checks for its own not-yet-made offer on every listing it
+    // views (offers_repository.dart's offerFor), so this doc very often
+    // doesn't exist. A rule that dereferences resource.data without first
+    // checking existence fails this read with permission-denied rather
+    // than a clean "not found" — this is the regression that crashed
+    // opening any other seller's listing.
+    await assertSucceeds(dbAs(BOB).doc(`offers/${OFFER}`).get());
+    await assertSucceeds(dbAs(CAROL).doc(`offers/${OFFER}`).get());
+  });
 });

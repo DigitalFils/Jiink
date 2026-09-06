@@ -44,14 +44,18 @@ class _SellScreenState extends State<SellScreen> {
             _buildHeader(),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
+                // The bottom nav floats over the page, so a plain 20px inset left the
+                // last element permanently under it — on Sell that was the
+                // Publish button, the whole point of the screen. Matches the
+                // 100px clearance Home, Drop and Chat already reserve.
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
                 child: Form(
                   key: _formKey,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'Публикация товара /\nSell Product',
+                        'Sell Product',
                         style: TextStyle(
                           fontFamily: 'Inter',
                           fontSize: 26,
@@ -64,42 +68,42 @@ class _SellScreenState extends State<SellScreen> {
                       _buildPhotoUpload(),
                       const SizedBox(height: 24),
                       _buildTextField(
-                        label: 'Название',
+                        label: 'Title',
                         controller: _titleController,
                         hint: 'Enter product title',
                       ),
                       const SizedBox(height: 16),
                       _buildTextField(
-                        label: 'Цена, £',
+                        label: 'Price, £',
                         controller: _priceController,
                         hint: '0.00',
                         keyboardType: TextInputType.number,
                       ),
                       const SizedBox(height: 16),
                       _buildDropdown(
-                        label: 'Город',
+                        label: 'City',
                         value: _selectedCity,
                         items: _cities,
                         onChanged: (value) => setState(() => _selectedCity = value!),
                       ),
                       const SizedBox(height: 16),
                       _buildDropdown(
-                        label: 'Категория',
+                        label: 'Category',
                         value: _selectedCategory,
                         items: _categories,
                         onChanged: (value) => setState(() => _selectedCategory = value!),
                       ),
                       const SizedBox(height: 24),
                       _buildSwitchRow(
-                        title: 'Аутентификация Dewu',
-                        subtitle: 'Dewu | 正品保证',
+                        title: 'Authenticity check',
+                        subtitle: 'Verified genuine',
                         value: _dewuAuth,
                         onChanged: (value) => setState(() => _dewuAuth = value),
                       ),
                       const SizedBox(height: 16),
                       _buildSwitchRow(
                         title: 'Enable Group Buy',
-                        subtitle: '拼团 • min 5 people',
+                        subtitle: 'Group buy • min 5 people',
                         value: _groupBuy,
                         onChanged: (value) => setState(() => _groupBuy = value),
                       ),
@@ -121,7 +125,7 @@ class _SellScreenState extends State<SellScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 18),
                           ),
                           child: const Text(
-                            'Опубликовать товар',
+                            'Publish listing',
                             style: TextStyle(fontSize: 18),
                           ),
                         ),
@@ -210,7 +214,7 @@ class _SellScreenState extends State<SellScreen> {
           ),
           const SizedBox(height: 12),
           const Text(
-            'Фото товара',
+            'Product photos',
             style: TextStyle(
               fontFamily: 'Inter',
               fontSize: 16,
@@ -220,7 +224,7 @@ class _SellScreenState extends State<SellScreen> {
           ),
           const SizedBox(height: 4),
           const Text(
-            'Добавить до 9 фото',
+            'Add up to 9 photos',
             style: TextStyle(
               fontFamily: 'Inter',
               fontSize: 13,

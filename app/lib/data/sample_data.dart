@@ -269,18 +269,18 @@ class SampleData {
   static final List<ChatMessage> chatMessages = [
     ChatMessage(
       sender: 'Jordan_L',
-      text: 'Привет! Интересует кроссовок. Готов обсуждать?',
+      text: 'Hi! Interested in the trainers. Open to offers?',
       time: DateTime.now().subtract(const Duration(minutes: 5)),
     ),
     ChatMessage(
       sender: 'Me',
-      text: 'Да, в отличном состоянии. Коробка есть.',
+      text: 'Yes, excellent condition. Comes with the box.',
       time: DateTime.now().subtract(const Duration(minutes: 4)),
       isMe: true,
     ),
     ChatMessage(
       sender: 'Jordan_L',
-      text: 'Можете скидку сделать?',
+      text: 'Could you do a discount?',
       time: DateTime.now().subtract(const Duration(minutes: 2)),
     ),
   ];

@@ -62,7 +62,13 @@ class HomeScreen extends StatelessWidget {
               sliver: SliverGrid(
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
-                  childAspectRatio: 0.72,
+                  // 0.72 gave a cell ~256px tall on a 412px-wide phone,
+                  // against a card needing ~315px: square photo, 28px of
+                  // padding, a two-line title, the 32px price and the
+                  // location row. The card overflowed and the price was
+                  // cut in half. This leaves room for all of it, with the
+                  // photo taking any slack.
+                  childAspectRatio: 0.58,
                   crossAxisSpacing: 12,
                   mainAxisSpacing: 12,
                 ),

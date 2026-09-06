@@ -117,7 +117,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
                   const SizedBox(width: 4),
                   const Text(
-                    'онлайн • отвечает быстро',
+                    'online • replies quickly',
                     style: TextStyle(
                       fontFamily: 'Inter',
                       fontSize: 11,
@@ -196,7 +196,7 @@ class _ChatScreenState extends State<ChatScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'БЫСТРЫЕ ПРЕДЛОЖЕНИЯ',
+            'QUICK OFFERS',
             style: TextStyle(
               fontFamily: 'Inter',
               fontSize: 11,
@@ -279,7 +279,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   controller: _messageController,
                   style: const TextStyle(color: AppTheme.textPrimary),
                   decoration: const InputDecoration(
-                    hintText: 'Написать сообщение...',
+                    hintText: 'Write a message...',
                     hintStyle: TextStyle(color: AppTheme.textMuted),
                     border: InputBorder.none,
                     contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),

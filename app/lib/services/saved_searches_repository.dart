@@ -3,10 +3,15 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models.dart';
 
 class SavedSearchesRepository {
-  SavedSearchesRepository({FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+  SavedSearchesRepository({FirebaseFirestore? firestore}) : _injectedFirestore = firestore;
 
-  final FirebaseFirestore _firestore;
+  final FirebaseFirestore? _injectedFirestore;
+
+  /// Resolved lazily rather than in the constructor so this class can be
+  /// subclassed and stubbed for the design harness (lib/dev_preview.dart),
+  /// which has no Firebase: constructing the repository must not be the
+  /// thing that reaches for FirebaseFirestore.instance, only *using* it.
+  FirebaseFirestore get _firestore => _injectedFirestore ?? FirebaseFirestore.instance;
 
   CollectionReference<Map<String, dynamic>> get _savedSearches =>
       _firestore.collection('savedSearches');

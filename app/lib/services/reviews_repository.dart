@@ -3,10 +3,15 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models.dart';
 
 class ReviewsRepository {
-  ReviewsRepository({FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+  ReviewsRepository({FirebaseFirestore? firestore}) : _injectedFirestore = firestore;
 
-  final FirebaseFirestore _firestore;
+  final FirebaseFirestore? _injectedFirestore;
+
+  /// Resolved lazily rather than in the constructor so this class can be
+  /// subclassed and stubbed for the design harness (lib/dev_preview.dart),
+  /// which has no Firebase: constructing the repository must not be the
+  /// thing that reaches for FirebaseFirestore.instance, only *using* it.
+  FirebaseFirestore get _firestore => _injectedFirestore ?? FirebaseFirestore.instance;
 
   CollectionReference<Map<String, dynamic>> get _reviews =>
       _firestore.collection('reviews');
@@ -16,6 +21,13 @@ class ReviewsRepository {
   /// tracking number appear without needing to re-open the screen. Orders
   /// only ever come from the Stripe webhook, so finding one here is proof
   /// of a real completed purchase.
+  ///
+  /// Restricted to paid orders: the webhook also records the buyer whose
+  /// payment lost a race for the same item and was refunded in full, and
+  /// that is not a purchase — offering them a review box would only end in
+  /// a write firestore.rules rejects. The status test is applied here
+  /// rather than as a third `where`, which would want a composite index
+  /// this project hasn't got and would fail at runtime without one.
   Stream<PurchaseOrder?> orderForPurchaseStream({
     required String buyerId,
     required String listingId,
@@ -24,13 +36,13 @@ class ReviewsRepository {
         .collection('orders')
         .where('buyerId', isEqualTo: buyerId)
         .where('listingId', isEqualTo: listingId)
-        .limit(1)
         .snapshots()
-        .map((snap) => snap.docs.isEmpty ? null : PurchaseOrder.fromFirestore(snap.docs.first));
+        .map(_firstPaidOrder);
   }
 
   /// The order for a listing the caller sold, if any — so a seller can add
-  /// a tracking number once it's paid for.
+  /// a tracking number once it's paid for. Refunded orders are excluded for
+  /// the same reason as above: there is nothing to ship for one.
   Stream<PurchaseOrder?> orderForSaleStream({
     required String sellerId,
     required String listingId,
@@ -39,9 +51,18 @@ class ReviewsRepository {
         .collection('orders')
         .where('sellerId', isEqualTo: sellerId)
         .where('listingId', isEqualTo: listingId)
-        .limit(1)
         .snapshots()
-        .map((snap) => snap.docs.isEmpty ? null : PurchaseOrder.fromFirestore(snap.docs.first));
+        .map(_firstPaidOrder);
+  }
+
+  /// A listing can carry more than one order once a refunded loser is
+  /// recorded alongside the winner, so this picks the one that stands
+  /// rather than whichever came back first.
+  static PurchaseOrder? _firstPaidOrder(QuerySnapshot<Map<String, dynamic>> snap) {
+    for (final doc in snap.docs) {
+      if (doc.data()['status'] == 'paid') return PurchaseOrder.fromFirestore(doc);
+    }
+    return null;
   }
 
   /// Only the seller who owns this order may call this — enforced by

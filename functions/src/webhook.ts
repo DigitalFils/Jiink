@@ -92,39 +92,94 @@ export const stripeWebhook = onRequest(
           }
           const listingRef = db.collection("listings").doc(listingId);
           const orderRef = db.collection("orders").doc(intent.id);
-          const applied = await db.runTransaction(async (tx) => {
+
+          // Three genuinely different things can be true by the time a
+          // payment succeeds, and collapsing them into one "did we write
+          // an order?" boolean quietly kept a buyer's money:
+          //
+          //  - Stripe redelivered an event we already processed. A no-op.
+          //  - This payment won the item. Mark it sold, record the order.
+          //  - This payment LOST. Nothing reserves a listing at checkout
+          //    time — status only moves to "sold" here, after payment — so
+          //    two people tapping Buy on the same one-off item within a few
+          //    seconds of each other both get a PaymentIntent and both
+          //    confirm. One gets the item; the other has been charged, and
+          //    the money has already moved to the seller's connected
+          //    account, for something they will never receive. Same if the
+          //    listing was deleted mid-checkout.
+          //
+          // The order doc is keyed by PaymentIntent id, so whether it
+          // exists is what separates a redelivery from a losing race — the
+          // listing reads "sold" in both cases.
+          const orderFields = {
+            listingId,
+            buyerId,
+            sellerId,
+            amountCents: intent.amount,
+            applicationFeeCents: intent.application_fee_amount ?? 0,
+            paymentIntentId: intent.id,
+          };
+          const outcome = await db.runTransaction(async (tx) => {
             const listingSnap = await tx.get(listingRef);
-            if (!listingSnap.exists || listingSnap.data()?.status === "sold") {
-              return false;
+            const orderSnap = await tx.get(orderRef);
+            const existingOrder = orderSnap.data();
+            // "refund_pending" means a previous delivery of this event got
+            // as far as recording the loss but not as far as Stripe. That
+            // is the one existing order we must not treat as finished.
+            if (existingOrder && existingOrder.status !== "refund_pending") {
+              return "already-handled" as const;
+            }
+            if (listingSnap.exists && listingSnap.data()?.status !== "sold") {
+              tx.set(listingRef, { status: "sold", soldAt: new Date() }, { merge: true });
+              tx.set(orderRef, { ...orderFields, status: "paid", createdAt: new Date() });
+              return "won" as const;
             }
             tx.set(
-              listingRef,
-              { status: "sold", soldAt: new Date() },
+              orderRef,
+              {
+                ...orderFields,
+                status: "refund_pending",
+                refundReason: listingSnap.exists ? "already-sold" : "listing-missing",
+                createdAt: new Date(),
+              },
               { merge: true }
             );
-            tx.set(orderRef, {
-              listingId,
-              buyerId,
-              sellerId,
-              amountCents: intent.amount,
-              applicationFeeCents: intent.application_fee_amount ?? 0,
-              paymentIntentId: intent.id,
-              status: "paid",
-              createdAt: new Date(),
-            });
-            return true;
+            return "lost" as const;
           });
-          if (applied) {
+
+          if (outcome === "won") {
             logger.info("Marked listing sold and recorded order", {
               ...logContext,
               listingId,
               paymentIntentId: intent.id,
             });
+          } else if (outcome === "lost") {
+            // reverse_transfer pulls the money back out of the seller's
+            // connected account (transfer_data.destination already moved it
+            // there); refund_application_fee returns our platform cut too.
+            // Nothing was delivered, so the buyer gets all of it back.
+            // The idempotency key makes a Stripe retry of this same event
+            // safe — a second call returns the first refund rather than
+            // issuing another one.
+            await getStripeClient().refunds.create(
+              {
+                payment_intent: intent.id,
+                reverse_transfer: true,
+                refund_application_fee: true,
+              },
+              { idempotencyKey: `s8ll_refund_${intent.id}` }
+            );
+            await orderRef.set({ status: "refunded", refundedAt: new Date() }, { merge: true });
+            logger.warn("Refunded a payment that lost the race for a listing", {
+              ...logContext,
+              listingId,
+              buyerId,
+              paymentIntentId: intent.id,
+              amountCents: intent.amount,
+            });
           } else {
-            // Stripe redelivered an event we've already handled, or the
-            // listing doesn't exist. Expected under at-least-once delivery
-            // — info, not a warning.
-            logger.info("Ignored payment_intent.succeeded for a listing that isn't live-sellable", {
+            // Expected under Stripe's at-least-once delivery.
+            logger.info("Ignored a redelivered payment_intent.succeeded", {
               ...logContext,
               listingId,
               paymentIntentId: intent.id,

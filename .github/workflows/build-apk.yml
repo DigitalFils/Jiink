@@ -8,6 +8,7 @@ on:
       - "functions/**"
       - "firestore-tests/**"
       - "firestore.rules"
+      - "ui-preview/**"
       - ".github/workflows/build-apk.yml"
   pull_request:
     branches: [main, master]
@@ -16,6 +17,7 @@ on:
       - "functions/**"
       - "firestore-tests/**"
       - "firestore.rules"
+      - "ui-preview/**"
       - ".github/workflows/build-apk.yml"
   workflow_dispatch: # Manual button in GitHub
 
@@ -151,3 +153,67 @@ jobs:
           echo "**Size:** $(du -h app/build/app/outputs/flutter-apk/app-release.apk | cut -f1)" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "Download the APK from the Artifacts section of this run." >> "$GITHUB_STEP_SUMMARY"
+
+  ui-preview-apk:
+    name: Build v2 UI preview APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.2"
+          channel: "stable"
+          cache: true
+
+      # ui-preview holds only lib/ and pubspec.yaml — the Android/Gradle
+      # scaffolding is generated here rather than committed, so there is one
+      # less copy of it in the tree to drift.
+      - name: Generate platform scaffolding
+        run: flutter create --org com.s8ll --project-name s8ll_app --platforms=android .
+        working-directory: ./ui-preview
+
+      - name: Get dependencies
+        run: flutter pub get
+        working-directory: ./ui-preview
+
+      - name: Analyze
+        # Errors only. This is an imported design prototype, not code held to
+        # the main app's lint bar, and failing the build on its style warnings
+        # would stop the APK anyone actually wants to look at.
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+        working-directory: ./ui-preview
+
+      - name: Build APK
+        run: flutter build apk --release
+        working-directory: ./ui-preview
+
+      # Locate the APK rather than assuming a path: Flutter's post-build copy
+      # into flutter-apk/ doesn't fire on the modern settings.gradle plugins
+      # layout (flutter/flutter#174620), which is what broke this repo's other
+      # APK job until a Gradle Copy task was added there.
+      - name: Collect APK
+        run: |
+          set -e
+          APK=$(find build -name "*release*.apk" -print -quit)
+          test -n "$APK"
+          mkdir -p out
+          cp "$APK" out/S8LL-v2-ui-preview.apk
+          ls -lh out/
+        working-directory: ./ui-preview
+
+      - name: Upload v2 UI preview APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: S8LL-v2-ui-preview
+          path: ui-preview/out/S8LL-v2-ui-preview.apk
+          retention-days: 30

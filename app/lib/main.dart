@@ -9,6 +9,8 @@ import 'package:provider/provider.dart';
 
 import 'firebase_options.dart';
 import 'screens/auth_screen.dart';
+import 'screens/onboarding_screen.dart';
+import 'screens/splash_screen.dart';
 import 'screens/root_shell.dart';
 import 'services/auth_service.dart';
 import 'services/chat_repository.dart';
@@ -21,6 +23,7 @@ import 'services/trust_safety_repository.dart';
 import 'state/app_state.dart';
 import 'state/theme_controller.dart';
 import 'theme.dart';
+import 'utils/first_run.dart';
 
 // Stripe test-mode publishable key for the s8ll-6ab35 project's Connect
 // integration (dashboard.stripe.com/test/apikeys). Publishable keys are
@@ -127,11 +130,51 @@ class S8llApp extends StatelessWidget {
 /// invisible to them, which is exactly the "Provider<AppState> not found"
 /// crash that hit every pushed screen reading AppState. Wrapping MaterialApp
 /// itself makes it an ancestor of the Overlay, and so of every route in it.
-class _AuthGate extends StatelessWidget {
+class _AuthGate extends StatefulWidget {
   const _AuthGate();
 
   @override
+  State<_AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<_AuthGate> {
+  /// v2 opens on the splash and then the onboarding. Both sit in front of
+  /// the sign-in gate rather than inside it — they are the app introducing
+  /// itself, which happens whether or not there's an account yet.
+  bool _splashDone = false;
+
+  /// Null until the stored answer comes back. The onboarding only shows on
+  /// a first run; after that the splash hands straight to the gate.
+  bool? _onboardingSeen;
+
+  @override
+  void initState() {
+    super.initState();
+    FirstRun.hasSeenOnboarding().then((seen) {
+      if (mounted) setState(() => _onboardingSeen = seen);
+    });
+  }
+
+  void _finishOnboarding() {
+    FirstRun.markOnboardingSeen();
+    setState(() => _onboardingSeen = true);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    // The splash animation runs for a fixed 2.5s; the stored onboarding flag
+    // resolves well inside that, so this never stalls waiting on storage.
+    if (!_splashDone || _onboardingSeen == null) {
+      return _buildApp(
+        home: SplashScreen(onDone: () {
+          if (mounted) setState(() => _splashDone = true);
+        }),
+      );
+    }
+    if (_onboardingSeen == false) {
+      return _buildApp(home: OnboardingScreen(onDone: _finishOnboarding));
+    }
+
     final authService = context.read<AuthService>();
     return StreamBuilder<User?>(
       stream: authService.authStateChanges,

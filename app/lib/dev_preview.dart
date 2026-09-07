@@ -6,7 +6,9 @@ import 'screens/drops_screen.dart';
 import 'screens/feed_screen.dart';
 import 'screens/messages_screen.dart';
 import 'screens/profile_screen.dart';
+import 'screens/onboarding_screen.dart';
 import 'screens/publish_screen.dart';
+import 'screens/splash_screen.dart';
 import 'services/chat_repository.dart';
 import 'services/offers_repository.dart';
 import 'services/reviews_repository.dart';
@@ -174,6 +176,11 @@ class DevPreviewApp extends StatefulWidget {
 class _DevPreviewAppState extends State<DevPreviewApp> {
   S8llTab _tab = S8llTab.home;
 
+  /// The harness walks the same entry sequence the app does — splash, then
+  /// onboarding, then the tabs — so the introduction can be looked at too.
+  bool _splashDone = false;
+  bool _onboardingDone = false;
+
   static const _screens = [
     FeedScreen(),
     DropsScreen(),
@@ -207,7 +214,11 @@ class _DevPreviewAppState extends State<DevPreviewApp> {
         // MaterialApp. Without it Navigator.of() has nothing to find and
         // the publish button throws instead of opening anything. The real
         // shell doesn't need this — it is itself the MaterialApp's home.
-        home: Builder(
+        home: !_splashDone
+            ? SplashScreen(onDone: () => setState(() => _splashDone = true))
+            : !_onboardingDone
+                ? OnboardingScreen(onDone: () => setState(() => _onboardingDone = true))
+                : Builder(
           builder: (context) => Scaffold(
             backgroundColor: S8llColors.black,
             extendBody: true,

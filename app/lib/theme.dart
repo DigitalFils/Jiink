@@ -44,6 +44,35 @@ class S8llColors {
   /// LIVE flag on a drop. Deliberately not [error]: one means urgency,
   /// the other means something went wrong.
   static const live = Color(0xFFFF3B30);
+
+  // The rest of the v2 palette, carried over exactly. Nothing here is a
+  // reinterpretation — these are the design's own values.
+  static const limePale = Color(0xFFE6FFA3);
+  static const success = Color(0xFF34C759);
+  static const info = Color(0xFF007AFF);
+  static const gold = Color(0xFFFFD700);
+}
+
+/// v2's gradients, verbatim. The splash and onboarding are built on these,
+/// so they live with the colours rather than inside a screen.
+class S8llGradients {
+  static const accent = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFFC1FF3D), Color(0xFF9BDB2E)],
+  );
+
+  static const dark = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [Color(0xFF1A1A1E), Color(0xFF0A0A0A)],
+  );
+
+  static const card = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF1E1E24), Color(0xFF141418)],
+  );
 }
 
 /// The roles that DO flip between light and dark — page background, card

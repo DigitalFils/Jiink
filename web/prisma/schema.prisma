@@ -1,0 +1,192 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id       String @id @default(cuid())
+  username String @unique
+
+  // Optional so the seeded demo rows, which predate accounts, stay valid.
+  // A user with no passwordHash simply cannot sign in — there is no
+  // password to check — which is the safe reading of a missing value.
+  email        String? @unique
+  passwordHash String?
+
+  sessions           Session[]
+  walletTransactions WalletTransaction[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @default(now()) @updatedAt
+
+  avatar       String
+  rating       Float         @default(4.8)
+  sales        Int           @default(0)
+  isVerified   Boolean       @default(false)
+  level        Int           @default(1)
+  xp           Int           @default(0)
+  balance      Float         @default(1240.5)
+  points       Int           @default(2840)
+  followers    Int           @default(0)
+  bio          String        @default("")
+  products     Product[]
+  feedPosts    FeedPost[]
+  sentMessages ChatMessage[] @relation("SentMessages")
+}
+
+model Product {
+  id            String         @id @default(cuid())
+  title         String
+  price         Float
+  originalPrice Float?
+  image         String
+  location      String         @default("Manchester")
+  condition     String         @default("New")
+  description   String         @default("")
+  category      String         @default("Electronics")
+  isVerified    Boolean        @default(false)
+  isFlashSale   Boolean        @default(false)
+  isLiveDrop    Boolean        @default(false)
+  isGroupBuy    Boolean        @default(false)
+  brand         String?
+  watchers      Int            @default(0)
+  bids          Int            @default(0)
+  sold          Int            @default(0)
+  timeLeft      String         @default("6h left")
+  sellerId      String
+  seller        User           @relation(fields: [sellerId], references: [id])
+  wishlistItems WishlistItem[]
+  createdAt     DateTime       @default(now())
+}
+
+model Story {
+  id       String  @id @default(cuid())
+  username String
+  avatar   String
+  isLive   Boolean @default(false)
+  time     String  @default("12m")
+}
+
+model FeedPost {
+  id          String @id @default(cuid())
+  sellerId    String
+  seller      User   @relation(fields: [sellerId], references: [id])
+  title       String
+  price       Float
+  image       String
+  action      String @default("Buy Now")
+  bids        Int    @default(0)
+  watching    Int    @default(0)
+  ordersToday Int    @default(0)
+  condition   String @default("9/10")
+  timeAgo     String @default("2m ago")
+}
+
+model LiveStream {
+  id         String  @id @default(cuid())
+  host       String
+  hostAvatar String
+  title      String
+  category   String  @default("Sneakers")
+  viewers    Int     @default(1240)
+  likes      Int     @default(8900)
+  cover      String
+  isLive     Boolean @default(true)
+}
+
+model ChatSession {
+  id           String        @id @default(cuid())
+  name         String
+  avatar       String
+  productTitle String?
+  productImage String?
+  unread       Int           @default(0)
+  lastMessage  String        @default("")
+  lastTime     String        @default("now")
+  messages     ChatMessage[]
+}
+
+model ChatMessage {
+  id         String      @id @default(cuid())
+  sessionId  String
+  session    ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  senderId   String?
+  sender     User?       @relation("SentMessages", fields: [senderId], references: [id])
+  senderName String      @default("Me")
+  text       String
+  isMe       Boolean     @default(false)
+  createdAt  DateTime    @default(now())
+}
+
+model WishlistItem {
+  id         String   @id @default(cuid())
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  collection String   @default("All")
+  priceAlert Boolean  @default(false)
+  addedAt    DateTime @default(now())
+}
+
+model WalletTransaction {
+  id String @id @default(cuid())
+
+  /// Whose transaction this is. There was no owner on this model at all,
+  /// so the wallet screen showed every transaction in the database to
+  /// everyone. Optional only so the seeded demo rows survive the migration;
+  /// anything written from here on has an owner.
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title     String
+  amount    Float
+  type      String   @default("purchase")
+  method    String   @default("Wallet")
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model GroupBuy {
+  id            String   @id @default(cuid())
+  title         String
+  image         String
+  price         Float
+  originalPrice Float
+  target        Int      @default(10)
+  participants  Int      @default(1)
+  endsAt        DateTime
+  category      String   @default("Electronics")
+  leader        String
+  leaderAvatar  String
+  joined        Boolean  @default(false)
+  productId     String?
+}
+
+/// A signed-in session.
+///
+/// Opaque server-side sessions rather than a self-contained JWT: a token in
+/// a row can be revoked the instant someone logs out or an account is
+/// compromised, which a stateless JWT cannot do before it expires.
+///
+/// Only the SHA-256 of the token is stored. The raw token lives in the
+/// user's cookie and nowhere else, so a dump of this table does not let
+/// anyone impersonate the sessions in it.
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  /// Recorded so a person can recognise their own sessions on a
+  /// "signed in devices" screen, and so suspicious ones stand out.
+  userAgent String?
+  ip        String?
+
+  @@index([userId])
+  @@index([expiresAt])
+}

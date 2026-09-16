@@ -179,7 +179,14 @@ jobs:
       # scaffolding is generated here rather than committed, so there is one
       # less copy of it in the tree to drift.
       - name: Generate platform scaffolding
-        run: flutter create --org com.s8ll --project-name s8ll_app --platforms=android .
+        # `flutter create` also writes a starter test/widget_test.dart that
+        # pumps `MyApp`. v2's entry class is S8LLApp, so that generated file
+        # is a hard analyzer error — the one thing --no-fatal-warnings does
+        # not forgive. Delete it: this module has no tests of its own, and a
+        # scaffolding artifact should not be able to fail the build.
+        run: |
+          flutter create --org com.s8ll --project-name s8ll_app --platforms=android .
+          rm -rf test
         working-directory: ./ui-preview
 
       - name: Get dependencies

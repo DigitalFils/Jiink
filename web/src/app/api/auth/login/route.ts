@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { db } from '@/lib/db'
-import { verifyPassword, createSession, rateLimit, clientIp, sessionUserSelect } from '@/lib/auth'
+import { verifyPassword, createSession, rateLimit, clientIp, sessionUserSelect, LIMITS } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,7 +12,7 @@ const Body = z.object({
 
 export async function POST(req: NextRequest) {
   const ip = clientIp(req) ?? 'unknown'
-  const limit = rateLimit(`login:${ip}`, 10, 15 * 60 * 1000)
+  const limit = rateLimit(`login:${ip}`, LIMITS.login.limit, LIMITS.login.windowMs)
   if (!limit.ok) {
     return NextResponse.json(
       { error: 'Too many attempts. Try again shortly.' },

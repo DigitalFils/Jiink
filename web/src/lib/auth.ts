@@ -222,6 +222,23 @@ const buckets = new Map<string, Bucket>()
  * Until then it is still worth having, because the alternative is unlimited
  * guesses.
  */
+/**
+ * Production limits are the real ones. Outside production they are raised,
+ * because the end-to-end suite registers several accounts per run and a
+ * 5-per-hour limit means the second run of the day fails for reasons that
+ * have nothing to do with the code under test — which teaches whoever sees
+ * it to ignore the suite.
+ *
+ * This deliberately reads `NODE_ENV`, which Next sets itself, rather than a
+ * variable someone could set on a production box to unlock it.
+ */
+const relaxed = process.env.NODE_ENV !== 'production'
+
+export const LIMITS = {
+  register: { limit: relaxed ? 200 : 5, windowMs: 60 * 60 * 1000 },
+  login: { limit: relaxed ? 200 : 10, windowMs: 15 * 60 * 1000 },
+} as const
+
 export function rateLimit(key: string, limit: number, windowMs: number): { ok: boolean; retryAfter: number } {
   const now = Date.now()
   const bucket = buckets.get(key)

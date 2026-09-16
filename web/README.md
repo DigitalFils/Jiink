@@ -33,8 +33,10 @@ Sign-in is email and password, held in an opaque server-side session.
   stores only its SHA-256 digest, so a dump of that table grants nobody a
   session. Signing out deletes the row, not just the cookie, which means a
   token copied off the device beforehand is dead too.
-- Credential routes are rate limited per IP — 10 sign-ins per 15 minutes,
-  5 registrations per hour. The limiter is **in-memory**, so it is per
+- Credential routes are rate limited per IP — in production, 10 sign-ins
+  per 15 minutes and 5 registrations per hour. The limits are raised
+  outside production so the end-to-end suite can run twice in an hour; see
+  `LIMITS` in `src/lib/auth.ts`. The limiter is **in-memory**, so it is per
   process and does not survive a restart. That is fine for one instance and
   needs to move to Redis or the database before there are two.
 
@@ -52,6 +54,19 @@ can be signed in to. Create an account instead.
 
 `GET /api/wallet` and `POST /api/products` are scoped to the session user
 and answer 401 without one.
+
+## Tests
+
+```sh
+npm run dev &
+node scripts/e2e/auth.mjs          # or pass a base URL
+```
+
+25 checks against the real HTTP surface: registration validation, session
+issue and revocation, cookie replay after sign-out, email enumeration
+through the login error, and the unauthenticated `POST /api/wallet` that
+used to mint money. No framework and no dependencies — it runs anywhere
+Node does, and it is what CI runs.
 
 ## Known gaps
 

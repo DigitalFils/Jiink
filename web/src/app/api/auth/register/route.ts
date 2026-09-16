@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { db } from '@/lib/db'
-import { hashPassword, createSession, rateLimit, clientIp, sessionUserSelect } from '@/lib/auth'
+import { hashPassword, createSession, rateLimit, clientIp, sessionUserSelect, LIMITS } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,7 +24,7 @@ const Body = z.object({
 
 export async function POST(req: NextRequest) {
   const ip = clientIp(req) ?? 'unknown'
-  const limit = rateLimit(`register:${ip}`, 5, 60 * 60 * 1000)
+  const limit = rateLimit(`register:${ip}`, LIMITS.register.limit, LIMITS.register.windowMs)
   if (!limit.ok) {
     return NextResponse.json(
       { error: 'Too many accounts created from here. Try again later.' },

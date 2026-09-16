@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../theme.dart';
 import '../utils/app_animations.dart';
+import '../widgets/logo.dart';
 
 /// The v2 splash, carried over as designed: the lime tile bouncing up under
 /// its own glow, then the wordmark and strapline sliding in behind it.
@@ -88,26 +89,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                   opacity: _logoOpacity.value,
                   child: Transform.scale(
                     scale: _logoScale.value,
-                    child: Container(
-                      width: 120,
-                      height: 120,
-                      decoration: BoxDecoration(
-                        color: S8llColors.lime,
-                        borderRadius: BorderRadius.circular(32),
-                        boxShadow: [
-                          BoxShadow(
-                            color: S8llColors.lime.withValues(alpha: 0.4),
-                            blurRadius: 40,
-                            spreadRadius: 5,
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.local_fire_department_rounded,
-                        color: S8llColors.black,
-                        size: 64,
-                      ),
-                    ),
+                    child: const S8LLMark(size: 120),
                   ),
                 ),
               ),
@@ -118,16 +100,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                   opacity: _textOpacity.value,
                   child: SlideTransition(
                     position: _textSlide,
-                    child: const Text(
-                      'S8LL',
-                      style: TextStyle(
-                        fontSize: 56,
-                        fontWeight: FontWeight.w900,
-                        color: S8llColors.lime,
-                        letterSpacing: -2,
-                        height: 1,
-                      ),
-                    ),
+                    child: const S8LLLogo(size: 56),
                   ),
                 ),
               ),

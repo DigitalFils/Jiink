@@ -341,7 +341,7 @@ class _Header extends StatelessWidget {
             child: FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
-              child: S8llLogo(size: 52),
+              child: S8LLLogo(size: 52),
             ),
           ),
           const SizedBox(width: 8),

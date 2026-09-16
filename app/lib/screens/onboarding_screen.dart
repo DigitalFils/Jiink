@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme.dart';
 import '../utils/app_animations.dart';
+import '../widgets/logo.dart';
 
 /// v2's onboarding, carried over as designed: five pages, the same icons,
 /// the same tinted gradient tiles bouncing in, the same expanding dots and
@@ -93,15 +94,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'S8LL',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w900,
-                      color: S8llColors.lime,
-                      letterSpacing: -1,
-                    ),
-                  ),
+                  const S8LLLogo(size: 28),
                   TextButton(
                     onPressed: widget.onDone,
                     child: const Text(

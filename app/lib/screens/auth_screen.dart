@@ -94,7 +94,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   // this one had positive letter-spacing while every other
                   // screen sets it tight, so the first screen anyone sees
                   // was the one that didn't match.
-                  const Center(child: S8llLogo(size: 52)),
+                  const Center(child: S8LLLogo(size: 52)),
                   const SizedBox(height: 4),
                   Text(
                     'Snap it, sell it.',

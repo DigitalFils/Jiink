@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- S8LL lime, the same #C1FF3D the app and the splash use. -->
+    <color name="ic_launcher_background">#C1FF3D</color>
+</resources>

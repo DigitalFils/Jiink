@@ -230,7 +230,15 @@ describe("chatThreads/{threadId}", () => {
 
 describe("orders/{orderId}", () => {
   beforeEach(async () => {
-    await seed((db) => db.doc("orders/o1").set({ buyerId: BOB, sellerId: ALICE }));
+    await seed(async (db) => {
+      // Every order the webhook writes carries a status. o1 is a sale that
+      // stands; o-refunded is the one it writes for a buyer whose payment
+      // lost the race for the same item and was refunded in full.
+      await db.doc("orders/o1").set({ buyerId: BOB, sellerId: ALICE, status: "paid" });
+      await db
+        .doc("orders/o-refunded")
+        .set({ buyerId: BOB, sellerId: ALICE, status: "refunded" });
+    });
   });
 
   it("lets the buyer and the seller read the order", async () => {
@@ -264,6 +272,12 @@ describe("orders/{orderId}", () => {
 
   it("blocks the seller from sneaking in other field changes alongside tracking", async () => {
     await assertFails(dbAs(ALICE).doc("orders/o1").update({ trackingNumber: "1Z999", status: "refunded" }));
+  });
+
+  it("blocks tracking on a refunded order — there is nothing to ship", async () => {
+    await assertFails(
+      dbAs(ALICE).doc("orders/o-refunded").update({ trackingNumber: "1Z999", carrier: "UPS" })
+    );
   });
 });
 
@@ -361,11 +375,21 @@ describe("savedSearches/{searchId}", () => {
 describe("reviews/{listingId}", () => {
   const LISTING = "listing-1";
   const ORDER = "order-1";
+  const REFUNDED_LISTING = "listing-refunded";
+  const REFUNDED_ORDER = "order-refunded";
 
   beforeEach(async () => {
-    await seed((db) =>
-      db.doc(`orders/${ORDER}`).set({ buyerId: BOB, sellerId: ALICE, listingId: LISTING })
-    );
+    await seed(async (db) => {
+      await db
+        .doc(`orders/${ORDER}`)
+        .set({ buyerId: BOB, sellerId: ALICE, listingId: LISTING, status: "paid" });
+      await db.doc(`orders/${REFUNDED_ORDER}`).set({
+        buyerId: BOB,
+        sellerId: ALICE,
+        listingId: REFUNDED_LISTING,
+        status: "refunded",
+      });
+    });
   });
 
   function validReview(overrides: Record<string, unknown> = {}) {
@@ -381,6 +405,17 @@ describe("reviews/{listingId}", () => {
 
   it("lets the real buyer of a completed sale leave a review", async () => {
     await assertSucceeds(dbAs(BOB).doc(`reviews/${LISTING}`).set(validReview()));
+  });
+
+  it("blocks a refunded buyer from rating a seller they never bought from", async () => {
+    // Their payment lost the race for the item and they got every penny
+    // back. The order doc still names them, so without the status check
+    // this would read as a completed purchase.
+    await assertFails(
+      dbAs(BOB).doc(`reviews/${REFUNDED_LISTING}`).set(
+        validReview({ orderId: REFUNDED_ORDER })
+      )
+    );
   });
 
   it("rejects a rating outside 1-5", async () => {

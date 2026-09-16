@@ -1,0 +1,411 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-inter);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* S8LL custom palette */
+  --color-surface: var(--surface);
+  --color-surface-light: var(--surface-light);
+  --color-s8ll: var(--s8ll);
+  --color-s8ll-dark: var(--s8ll-dark);
+  --color-s8ll-soft: var(--s8ll-soft);
+  --color-gold: var(--gold);
+  --color-success: var(--success);
+  --color-warn: var(--warn);
+  --color-live: var(--live);
+  --color-txt2: var(--txt2);
+  --color-txt3: var(--txt3);
+}
+
+/* S8LL dark theme — default (attribute set by next-themes) */
+:root {
+  --radius: 1rem;
+  --background: #0a0a0a;
+  --foreground: #ffffff;
+  --card: #141418;
+  --card-foreground: #ffffff;
+  --popover: #1a1a1e;
+  --popover-foreground: #ffffff;
+  --primary: #c1ff3d;
+  --primary-foreground: #0a0a0a;
+  --secondary: #25252a;
+  --secondary-foreground: #ffffff;
+  --muted: #25252a;
+  --muted-foreground: #9e9ea7;
+  --accent: #c1ff3d;
+  --accent-foreground: #0a0a0a;
+  --destructive: #ff4444;
+  --border: #2a2a30;
+  --input: #2a2a30;
+  --ring: #c1ff3d;
+  --chart-1: #c1ff3d;
+  --chart-2: #34c759;
+  --chart-3: #ffd700;
+  --chart-4: #ff9500;
+  --chart-5: #ff3b30;
+  --sidebar: #141418;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #c1ff3d;
+  --sidebar-primary-foreground: #0a0a0a;
+  --sidebar-accent: #25252a;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #2a2a30;
+  --sidebar-ring: #c1ff3d;
+
+  --surface: #1a1a1e;
+  --surface-light: #25252a;
+  --s8ll: #c1ff3d;
+  --s8ll-dark: #9bdb2e;
+  --s8ll-soft: #e6ffa3;
+  --gold: #ffd700;
+  --success: #34c759;
+  --warn: #ff9500;
+  --live: #ff3b30;
+  --txt2: #9e9ea7;
+  --txt3: #6b6b74;
+  --card-grad-a: #1e1e24;
+  --card-grad-b: #141418;
+  --shimmer-a: #1a1a1e;
+  --shimmer-b: #25252a;
+}
+
+/* S8LL light theme — runtime-switchable (parity with Flutter v2.0 lightTheme) */
+:root[data-theme='light'] {
+  --background: #f5f5f7;
+  --foreground: #1a1a1e;
+  --card: #ffffff;
+  --card-foreground: #1a1a1e;
+  --popover: #ffffff;
+  --popover-foreground: #1a1a1e;
+  --primary: #c1ff3d;
+  --primary-foreground: #0a0a0a;
+  --secondary: #f0f0f5;
+  --secondary-foreground: #1a1a1e;
+  --muted: #f0f0f5;
+  --muted-foreground: #6b6b74;
+  --accent: #c1ff3d;
+  --accent-foreground: #0a0a0a;
+  --destructive: #ff4444;
+  --border: #e5e5ea;
+  --input: #e5e5ea;
+  --ring: #9bdb2e;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #1a1a1e;
+  --sidebar-primary: #c1ff3d;
+  --sidebar-primary-foreground: #0a0a0a;
+  --sidebar-accent: #f0f0f5;
+  --sidebar-accent-foreground: #1a1a1e;
+  --sidebar-border: #e5e5ea;
+  --sidebar-ring: #9bdb2e;
+
+  --surface: #ffffff;
+  --surface-light: #f0f0f5;
+  --s8ll: #9bdb2e;
+  --s8ll-dark: #7fc22a;
+  --s8ll-soft: #c9f27a;
+  --gold: #ffd700;
+  --success: #34c759;
+  --warn: #ff9500;
+  --live: #ff3b30;
+  --txt2: #6b6b74;
+  --txt3: #9e9ea7;
+  --card-grad-a: #ffffff;
+  --card-grad-b: #f7f7fa;
+  --shimmer-a: #f0f0f5;
+  --shimmer-b: #e5e5ea;
+}
+
+/*
+ * Light-mode color migration:
+ * 1. `text-white` on theme surfaces flips to the foreground token.
+ * 2. Media / promo / immersive containers marked `.keep-dark` keep the dark
+ *    token set (dark islands on a light UI — live stage, AR viewport, banners).
+ * 3. `bg-live` badges keep white text in both themes.
+ */
+[data-theme='light'] .text-white {
+  color: var(--foreground);
+}
+[data-theme='light'] .bg-live.text-white {
+  color: #ffffff;
+}
+[data-theme='light'] .hover\:text-white:hover {
+  color: var(--foreground);
+}
+[data-theme='light'] .keep-dark {
+  --background: #0a0a0a;
+  --foreground: #ffffff;
+  --card: #141418;
+  --card-foreground: #ffffff;
+  --popover: #1a1a1e;
+  --popover-foreground: #ffffff;
+  --secondary: #25252a;
+  --secondary-foreground: #ffffff;
+  --muted: #25252a;
+  --muted-foreground: #9e9ea7;
+  --border: #2a2a30;
+  --input: #2a2a30;
+  --ring: #c1ff3d;
+  --surface: #1a1a1e;
+  --surface-light: #25252a;
+  --s8ll: #c1ff3d;
+  --s8ll-dark: #9bdb2e;
+  --s8ll-soft: #e6ffa3;
+  --txt2: #9e9ea7;
+  --txt3: #6b6b74;
+  --card-grad-a: #1e1e24;
+  --card-grad-b: #141418;
+  --shimmer-a: #1a1a1e;
+  --shimmer-b: #25252a;
+}
+[data-theme='light'] .keep-dark .hover\:text-white:hover {
+  color: #ffffff;
+}
+
+/* smooth cross-fade while switching themes (class added for ~500ms by the toggle) */
+.theme-anim,
+.theme-anim *,
+.theme-anim *::before,
+.theme-anim *::after {
+  transition:
+    background-color 0.35s ease,
+    border-color 0.35s ease,
+    color 0.35s ease,
+    fill 0.35s ease,
+    stroke 0.35s ease,
+    box-shadow 0.35s ease !important;
+  transition-delay: 0s !important;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+}
+
+/* ---------- S8LL utilities ---------- */
+
+.s8ll-gradient-text {
+  background: linear-gradient(135deg, var(--s8ll) 0%, var(--s8ll-soft) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.s8ll-btn {
+  background: linear-gradient(135deg, #c1ff3d 0%, #9bdb2e 100%);
+  color: #0a0a0a;
+  font-weight: 700;
+  transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+.s8ll-btn:hover {
+  filter: brightness(1.06);
+  box-shadow: 0 0 24px rgba(193, 255, 61, 0.25);
+}
+.s8ll-btn:active {
+  transform: scale(0.97);
+}
+
+.s8ll-card {
+  background: linear-gradient(135deg, var(--card-grad-a) 0%, var(--card-grad-b) 100%);
+  border: 1px solid var(--border);
+}
+
+.s8ll-glow {
+  box-shadow: 0 0 40px rgba(193, 255, 61, 0.12), 0 0 90px rgba(193, 255, 61, 0.06);
+}
+
+.text-shadow-hard {
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.8);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-thin: none;
+  scrollbar-width: none;
+}
+
+.s8ll-scroll::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.s8ll-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.s8ll-scroll::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 999px;
+}
+.s8ll-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--txt3);
+}
+
+/* phone frame wrapper for desktop */
+.app-frame {
+  width: 100%;
+  max-width: 480px;
+  margin-inline: auto;
+  min-height: 100dvh;
+  position: relative;
+  background: var(--background);
+  overflow-x: hidden;
+}
+@media (min-width: 640px) {
+  .app-frame {
+    border-inline: 1px solid var(--border);
+    min-height: 100dvh;
+  }
+}
+
+/* live pulsing dot */
+.live-dot {
+  position: relative;
+}
+.live-dot::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 999px;
+  background: var(--live);
+  opacity: 0.5;
+  animation: ping-ring 1.4s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@keyframes ping-ring {
+  0% { transform: scale(0.9); opacity: 0.6; }
+  80%, 100% { transform: scale(1.6); opacity: 0; }
+}
+
+/* scan line for auth screen */
+@keyframes scanline {
+  0% { top: 4%; }
+  50% { top: 92%; }
+  100% { top: 4%; }
+}
+.scanline {
+  animation: scanline 2.6s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.shimmer {
+  background: linear-gradient(90deg, var(--shimmer-a) 25%, var(--shimmer-b) 37%, var(--shimmer-a) 63%);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+@keyframes floaty {
+  0%, 100% { transform: translateY(0) rotate(var(--r, 0deg)); }
+  50% { transform: translateY(-10px) rotate(var(--r, 0deg)); }
+}
+.floaty {
+  animation: floaty 3.4s ease-in-out infinite;
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.marquee {
+  animation: marquee 18s linear infinite;
+}
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.rise-in {
+  animation: rise-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes pop-in {
+  0% { opacity: 0; transform: scale(0.9); }
+  60% { transform: scale(1.03); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.pop-in {
+  animation: pop-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes typewriter-dot {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+.tdot {
+  animation: typewriter-dot 1.1s ease-in-out infinite;
+}
+.tdot:nth-child(2) { animation-delay: 0.15s; }
+.tdot:nth-child(3) { animation-delay: 0.3s; }
+
+/* shoe rotation for AR */
+@keyframes shoe-walk {
+  0% { transform: rotate(-8deg) translateY(0); }
+  50% { transform: rotate(6deg) translateY(-8px); }
+  100% { transform: rotate(-8deg) translateY(0); }
+}
+.shoe-ar {
+  animation: shoe-walk 2.2s ease-in-out infinite;
+  filter: drop-shadow(0 18px 24px rgba(0, 0, 0, 0.55));
+}
+
+/* grid pattern for map */
+.map-grid {
+  background-image:
+    linear-gradient(rgba(193, 255, 61, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(193, 255, 61, 0.05) 1px, transparent 1px);
+  background-size: 42px 42px;
+}
+
+@keyframes marker-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(193, 255, 61, 0.4); }
+  50% { box-shadow: 0 0 0 12px rgba(193, 255, 61, 0); }
+}
+.marker-pulse {
+  animation: marker-pulse 2s ease-out infinite;
+}

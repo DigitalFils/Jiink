@@ -1,0 +1,113 @@
+name: S8LL • Web
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "web/**"
+      - ".github/workflows/web.yml"
+  pull_request:
+    paths:
+      - "web/**"
+      - ".github/workflows/web.yml"
+  workflow_dispatch: # Manual button in GitHub
+
+# A second push to the same branch makes the first run's answer worthless.
+concurrency:
+  group: web-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Lint, typecheck, build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: ./web
+
+      # The Prisma client is generated code. Nothing that imports `db`
+      # typechecks until it exists, so this runs before tsc, not after.
+      - name: Generate the Prisma client
+        run: npx prisma generate
+        working-directory: ./web
+
+      - name: Lint
+        run: npx eslint src
+        working-directory: ./web
+
+      - name: Typecheck
+        # `next build` typechecks too, but it stops at the first error and
+        # buries it in build output. This reports the lot, up front.
+        run: npx tsc --noEmit
+        working-directory: ./web
+
+      - name: Build
+        run: npx next build
+        working-directory: ./web
+        env:
+          # Prisma insists on a URL at import time even though the build
+          # never opens a connection. A path under the runner's temp dir
+          # keeps it happy without leaving a stray file in the checkout.
+          DATABASE_URL: file:${{ runner.temp }}/build.db
+
+  auth-flow:
+    name: Auth and sessions end to end
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: ./web
+
+      - name: Create and seed the database
+        run: |
+          npx prisma db push --skip-generate
+          npx prisma generate
+          npx tsx scripts/seed.ts
+        working-directory: ./web
+        env:
+          DATABASE_URL: file:../db/ci.db
+
+      - name: Start the server
+        run: |
+          npx next dev -p 3000 > /tmp/web.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -sf -o /dev/null http://localhost:3000/api/auth/me; then
+              echo "up after ${i}s"; exit 0
+            fi
+            sleep 1
+          done
+          echo "server never came up"; cat /tmp/web.log; exit 1
+        working-directory: ./web
+        env:
+          DATABASE_URL: file:../db/ci.db
+
+      - name: Register, sign in, sign out
+        run: node scripts/e2e/auth.mjs
+        working-directory: ./web
+
+      - name: Server log on failure
+        if: failure()
+        run: cat /tmp/web.log

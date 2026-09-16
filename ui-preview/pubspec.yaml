@@ -1,0 +1,25 @@
+name: s8ll_app
+description: S8LL Marketplace v2.0 - Ultimate Blend of Avito x Dewu x PDD x Xiaohongshu
+publish_to: 'none'
+version: 2.0.0+2
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.6
+  google_fonts: ^6.1.0
+  flutter_svg: ^2.0.9
+  intl: ^0.19.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/

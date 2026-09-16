@@ -36,23 +36,40 @@ class Profile {
 class AppState extends ChangeNotifier {
   AppState({required this.uid, ListingsRepository? repository})
       : _repository = repository ?? ListingsRepository() {
+    final repo = _repository!;
     _profileSub = FirebaseFirestore.instance
         .collection('users')
         .doc(uid)
         .snapshots()
         .listen(_onProfileSnapshot);
-    _listingsSub = _repository.liveListings().listen(_onListingsSnapshot);
-    _myListingsSub =
-        _repository.listingsBySeller(uid).listen(_onMyListingsSnapshot);
+    _listingsSub = repo.liveListings().listen(_onListingsSnapshot);
+    _myListingsSub = repo.listingsBySeller(uid).listen(_onMyListingsSnapshot);
   }
 
-  final String uid;
-  final ListingsRepository _repository;
+  /// Fixed contents, no repository and no Firestore listeners — for the
+  /// design harness in lib/dev_preview.dart and for widget tests, neither
+  /// of which has a Firebase to talk to. Without this there was no way to
+  /// render a screen that reads AppState outside a signed-in app, which is
+  /// why layout bugs on those screens kept reaching a real device before
+  /// anyone saw them.
+  AppState.preview({
+    required this.uid,
+    Profile? profile,
+    List<Listing> listings = const [],
+    List<Listing> myListings = const [],
+  })  : _repository = null,
+        _profile = profile,
+        _listings = listings,
+        _myListings = myListings;
 
-  late final StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>
-      _profileSub;
-  late final StreamSubscription<List<Listing>> _listingsSub;
-  late final StreamSubscription<List<Listing>> _myListingsSub;
+  final String uid;
+
+  /// Null in [AppState.preview], where nothing may touch Firestore.
+  final ListingsRepository? _repository;
+
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _profileSub;
+  StreamSubscription<List<Listing>>? _listingsSub;
+  StreamSubscription<List<Listing>>? _myListingsSub;
 
   Profile? _profile;
   List<Listing> _listings = [];
@@ -97,7 +114,7 @@ class AppState extends ChangeNotifier {
     if (profile == null) {
       throw StateError('Profile not loaded yet.');
     }
-    return _repository.publish(
+    return _repository!.publish(
       sellerId: uid,
       sellerName: profile.displayName,
       sellerCity: profile.city,
@@ -110,10 +127,10 @@ class AppState extends ChangeNotifier {
     );
   }
 
-  Future<void> bumpListing(String listingId) => _repository.bump(listingId);
+  Future<void> bumpListing(String listingId) => _repository!.bump(listingId);
 
   Future<void> setWatching(String listingId, {required bool watching}) =>
-      _repository.setWatching(listingId, uid, watching: watching);
+      _repository!.setWatching(listingId, uid, watching: watching);
 
   /// Blocking is just an update to this user's own profile doc, which they
   /// already have full read/write access to — no Firestore rule needed.
@@ -136,9 +153,9 @@ class AppState extends ChangeNotifier {
 
   @override
   void dispose() {
-    _profileSub.cancel();
-    _listingsSub.cancel();
-    _myListingsSub.cancel();
+    _profileSub?.cancel();
+    _listingsSub?.cancel();
+    _myListingsSub?.cancel();
     super.dispose();
   }
 }

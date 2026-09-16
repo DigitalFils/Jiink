@@ -165,7 +165,7 @@ describe("onOrderCreated", () => {
     fakeDb.seed(`users/${BUYER}`, { fcmTokens: ["buyer-token"] });
 
     await onOrderCreated.run({
-      data: docSnapshot({ listingId: LISTING, sellerId: SELLER, buyerId: BUYER }),
+      data: docSnapshot({ listingId: LISTING, sellerId: SELLER, buyerId: BUYER, status: "paid" }),
       params: { orderId: "pi_test_1" },
     } as never);
 
@@ -175,6 +175,33 @@ describe("onOrderCreated", () => {
     );
     expect(fakeMessaging.sendEachForMulticast).toHaveBeenCalledWith(
       expect.objectContaining({ tokens: ["buyer-token"] })
+    );
+  });
+
+  it("tells a refunded buyer they were refunded, and tells the seller nothing", async () => {
+    // The webhook writes an order for the buyer whose payment lost the race
+    // too. "Sold!" to the seller and "Payment confirmed" to that buyer would
+    // both be false.
+    fakeDb.seed(`listings/${LISTING}`, { title: "Nike Air Max 90" });
+    fakeDb.seed(`users/${SELLER}`, { fcmTokens: ["seller-token"] });
+    fakeDb.seed(`users/${BUYER}`, { fcmTokens: ["buyer-token"] });
+
+    await onOrderCreated.run({
+      data: docSnapshot({
+        listingId: LISTING,
+        sellerId: SELLER,
+        buyerId: BUYER,
+        status: "refund_pending",
+      }),
+      params: { orderId: "pi_loser" },
+    } as never);
+
+    expect(fakeMessaging.sendEachForMulticast).toHaveBeenCalledTimes(1);
+    expect(fakeMessaging.sendEachForMulticast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tokens: ["buyer-token"],
+        notification: expect.objectContaining({ title: "Refunded" }),
+      })
     );
   });
 });

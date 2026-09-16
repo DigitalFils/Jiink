@@ -1,0 +1,16 @@
+{
+  "name": "S8LL — Ultimate Marketplace",
+  "short_name": "S8LL",
+  "description": "Live shopping, AR try-on, group buys and authenticated sneaker drops. Avito × Dewu × PDD × Xiaohongshu.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0A0A0A",
+  "theme_color": "#0A0A0A",
+  "orientation": "portrait",
+  "categories": ["shopping", "lifestyle"],
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

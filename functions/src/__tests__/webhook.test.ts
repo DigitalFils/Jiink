@@ -57,6 +57,7 @@ function makePaymentIntentEvent(overrides: Record<string, unknown> = {}) {
 beforeEach(() => {
   fakeDb.store.clear();
   fakeStripe.webhooks.constructEvent.mockReset();
+  fakeStripe.refunds.create.mockClear();
 });
 
 afterEach(() => {
@@ -121,9 +122,11 @@ describe("stripeWebhook", () => {
     });
   });
 
-  it("is idempotent: a redelivered event against an already-sold listing writes no order", async () => {
-    // Simulates Stripe retrying the same event after it already succeeded once.
+  it("is idempotent: a redelivered event whose order already exists changes nothing", async () => {
+    // Stripe retrying an event it already delivered successfully. The order
+    // doc for THIS PaymentIntent is what proves we handled it before.
     fakeDb.seed(`listings/${LISTING}`, { status: "sold", sellerId: SELLER, soldAt: new Date() });
+    fakeDb.seed("orders/pi_test_1", { listingId: LISTING, buyerId: BUYER, sellerId: SELLER, status: "paid" });
     fakeStripe.webhooks.constructEvent.mockReturnValue(makePaymentIntentEvent());
 
     const res = makeRes();
@@ -133,7 +136,101 @@ describe("stripeWebhook", () => {
     );
 
     expect(res._code).toBe(200);
-    expect(fakeDb.store.has("orders/pi_test_1")).toBe(false);
+    expect(fakeDb.store.get("orders/pi_test_1")).toMatchObject({ status: "paid" });
+    expect(fakeStripe.refunds.create).not.toHaveBeenCalled();
+  });
+
+  it("refunds a buyer whose payment lost the race for an already-sold listing", async () => {
+    // Two buyers tapped Buy within seconds of each other. Nothing reserves
+    // the listing at checkout, so both got a PaymentIntent and both paid.
+    // The first won; this one must get its money back, out of the seller's
+    // connected account and out of our platform fee.
+    const warnSpy = jest.spyOn(logger, "warn").mockImplementation(() => undefined);
+    fakeDb.seed(`listings/${LISTING}`, { status: "sold", sellerId: SELLER, soldAt: new Date() });
+    fakeStripe.webhooks.constructEvent.mockReturnValue(makePaymentIntentEvent({ id: "pi_loser" }));
+
+    const res = makeRes();
+    await stripeWebhook(
+      { headers: { "stripe-signature": "ok" }, rawBody: Buffer.from("{}") } as never,
+      res as never
+    );
+
+    expect(res._code).toBe(200);
+    expect(fakeStripe.refunds.create).toHaveBeenCalledWith(
+      {
+        payment_intent: "pi_loser",
+        reverse_transfer: true,
+        refund_application_fee: true,
+      },
+      { idempotencyKey: "s8ll_refund_pi_loser" }
+    );
+    expect(fakeDb.store.get("orders/pi_loser")).toMatchObject({
+      listingId: LISTING,
+      buyerId: BUYER,
+      amountCents: 2500,
+      status: "refunded",
+      refundReason: "already-sold",
+    });
+    expect(warnSpy).toHaveBeenCalledWith(
+      "Refunded a payment that lost the race for a listing",
+      expect.objectContaining({ paymentIntentId: "pi_loser" })
+    );
+  });
+
+  it("refunds a payment for a listing that no longer exists", async () => {
+    jest.spyOn(logger, "warn").mockImplementation(() => undefined);
+    fakeStripe.webhooks.constructEvent.mockReturnValue(makePaymentIntentEvent({ id: "pi_orphan" }));
+
+    const res = makeRes();
+    await stripeWebhook(
+      { headers: { "stripe-signature": "ok" }, rawBody: Buffer.from("{}") } as never,
+      res as never
+    );
+
+    expect(res._code).toBe(200);
+    expect(fakeStripe.refunds.create).toHaveBeenCalled();
+    expect(fakeDb.store.get("orders/pi_orphan")).toMatchObject({
+      status: "refunded",
+      refundReason: "listing-missing",
+    });
+  });
+
+  it("retries the refund when a previous delivery recorded the loss but never reached Stripe", async () => {
+    jest.spyOn(logger, "warn").mockImplementation(() => undefined);
+    fakeDb.seed(`listings/${LISTING}`, { status: "sold", sellerId: SELLER });
+    fakeDb.seed("orders/pi_test_1", { listingId: LISTING, buyerId: BUYER, status: "refund_pending" });
+    fakeStripe.webhooks.constructEvent.mockReturnValue(makePaymentIntentEvent());
+
+    const res = makeRes();
+    await stripeWebhook(
+      { headers: { "stripe-signature": "ok" }, rawBody: Buffer.from("{}") } as never,
+      res as never
+    );
+
+    expect(res._code).toBe(200);
+    expect(fakeStripe.refunds.create).toHaveBeenCalled();
+    expect(fakeDb.store.get("orders/pi_test_1")).toMatchObject({ status: "refunded" });
+  });
+
+  it("returns 500 so Stripe retries when the refund call itself fails", async () => {
+    const errorSpy = jest.spyOn(logger, "error").mockImplementation(() => undefined);
+    fakeDb.seed(`listings/${LISTING}`, { status: "sold", sellerId: SELLER });
+    fakeStripe.refunds.create.mockRejectedValueOnce(new Error("Stripe is down"));
+    fakeStripe.webhooks.constructEvent.mockReturnValue(makePaymentIntentEvent());
+
+    const res = makeRes();
+    await stripeWebhook(
+      { headers: { "stripe-signature": "ok" }, rawBody: Buffer.from("{}") } as never,
+      res as never
+    );
+
+    expect(res._code).toBe(500);
+    // Left as refund_pending, which is what makes the retry pick it up again.
+    expect(fakeDb.store.get("orders/pi_test_1")).toMatchObject({ status: "refund_pending" });
+    expect(errorSpy).toHaveBeenCalledWith(
+      "Failed to process Stripe webhook event",
+      expect.objectContaining({ error: "Stripe is down" })
+    );
   });
 
   it("acknowledges an event type it doesn't handle without side effects", async () => {

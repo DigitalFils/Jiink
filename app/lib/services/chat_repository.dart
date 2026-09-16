@@ -3,10 +3,15 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models.dart';
 
 class ChatRepository {
-  ChatRepository({FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+  ChatRepository({FirebaseFirestore? firestore}) : _injectedFirestore = firestore;
 
-  final FirebaseFirestore _firestore;
+  final FirebaseFirestore? _injectedFirestore;
+
+  /// Resolved lazily rather than in the constructor so this class can be
+  /// subclassed and stubbed for the design harness (lib/dev_preview.dart),
+  /// which has no Firebase: constructing the repository must not be the
+  /// thing that reaches for FirebaseFirestore.instance, only *using* it.
+  FirebaseFirestore get _firestore => _injectedFirestore ?? FirebaseFirestore.instance;
 
   /// A thread is keyed by the listing plus the buyer who started it, so a
   /// listing with several interested buyers gets a separate thread each —

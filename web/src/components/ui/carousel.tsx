@@ -58,14 +58,34 @@ function Carousel({
     },
     plugins
   )
-  const [canScrollPrev, setCanScrollPrev] = React.useState(false)
-  const [canScrollNext, setCanScrollNext] = React.useState(false)
+  // Read straight off the Embla instance on every render, with Embla's own
+  // events as the subscription. The previous version mirrored these two
+  // booleans into state and seeded them by calling the select handler from
+  // inside an effect, which is a setState in an effect body: an extra
+  // render pass on mount in which the arrows were both disabled.
+  const subscribe = React.useCallback(
+    (onStoreChange: () => void) => {
+      if (!api) return () => {}
+      api.on("reInit", onStoreChange)
+      api.on("select", onStoreChange)
+      return () => {
+        api.off("reInit", onStoreChange)
+        api.off("select", onStoreChange)
+      }
+    },
+    [api],
+  )
 
-  const onSelect = React.useCallback((api: CarouselApi) => {
-    if (!api) return
-    setCanScrollPrev(api.canScrollPrev())
-    setCanScrollNext(api.canScrollNext())
-  }, [])
+  const canScrollPrev = React.useSyncExternalStore(
+    subscribe,
+    () => !!api?.canScrollPrev(),
+    () => false,
+  )
+  const canScrollNext = React.useSyncExternalStore(
+    subscribe,
+    () => !!api?.canScrollNext(),
+    () => false,
+  )
 
   const scrollPrev = React.useCallback(() => {
     api?.scrollPrev()
@@ -93,16 +113,6 @@ function Carousel({
     setApi(api)
   }, [api, setApi])
 
-  React.useEffect(() => {
-    if (!api) return
-    onSelect(api)
-    api.on("reInit", onSelect)
-    api.on("select", onSelect)
-
-    return () => {
-      api?.off("select", onSelect)
-    }
-  }, [api, onSelect])
 
   return (
     <CarouselContext.Provider
